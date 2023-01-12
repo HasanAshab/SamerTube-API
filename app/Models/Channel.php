@@ -15,6 +15,7 @@ class Channel extends Model
     'name',
     'description',
     'country',
+    'logo_path',
     'logo_url'
   ];
 

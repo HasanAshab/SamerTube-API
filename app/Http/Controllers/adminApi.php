@@ -13,60 +13,9 @@ use Hash;
 
 class adminApi extends Controller
 {
-  /**
-  * Get a Token via given credentials.
-  *
-  * @return \Illuminate\Http\JsonResponse
-  */
-  public function login(Request $request) {
-    $request->validate([
-      'email' => 'required|email',
-      'password' => 'required',
-    ]);
-    $admin = Admin::where('email', $request->email)->first();
-    if(!$admin || !Hash::check($request->password, $admin->password)){
-      return response()->json(['success'=>false, 'message'=>'Credentials not match!'], 401);
-    }
-    return ['success' => true,
-        'access_token' => $admin->createToken("API TOKEN", ['admin'])->plainTextToken];
-  }
-  
-  // Create new token
-  public function refresh(Request $request){
-    if($request->user()->currentAccessToken()->delete()){
-    return ['success' => true,
-        'access_token' => $request->user()->createToken("API TOKEN", ['admin'])->plainTextToken];
-    }
-    return response()->json(['success' => false], 451);
-  }
-  
-  // logout user
-  public function logout(Request $request){
-    if($request->user()->currentAccessToken()->delete()){
-      return ['success' => true];
-    }
-    return response()->json(['success' => false], 451);
-  }
-  
-  // Logout from all devices
-  public function logoutAllDevices(Request $request){
-    if($request->user()->tokens()->delete()){
-      return ['success' => true];
-    }
-    return response()->json(['success' => false], 451);
-  }
-
-// Delete admin account
-  public function destroy(Request $request) {
-    if ($request->user()->delete()) {
-      return ['success' => true, 'message' => 'Your account is successfully deleted!'];
-    }
-    return response()->json(['success' => false, 'message' => 'failed to deleted account!'], 451);
-  }
-  
   // Get all users
   public function getUsers(){
-    return User::all();
+    return User::where('is_admin', 0)->get();
   }
   
   // Get all Channels

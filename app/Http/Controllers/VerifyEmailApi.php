@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Models\User;
 
-class VerifyEmailController extends Controller
+class VerifyEmailApi extends Controller
 {
 
     public function __invoke(Request $request): RedirectResponse

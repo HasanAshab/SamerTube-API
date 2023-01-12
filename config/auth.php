@@ -36,21 +36,11 @@ return [
     */
 
     'guards' => [
-      
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
-        ],
         'user'=>[
           'driver' => 'sanctum',
           'provider' => 'users',
           'hash' => false
-          ],
-        'admin'=>[
-          'driver' => 'sanctum',
-          'provider' => 'admins',
-          'hash' => false
-          ]
+        ]
     ],
 
     /*
@@ -74,17 +64,7 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => App\Models\User::class,
-        ],
-        
-        'admins' => [
-            'driver' => 'eloquent',
-            'model' => App\Models\Admin::class,
-        ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        ]
     ],
 
     /*

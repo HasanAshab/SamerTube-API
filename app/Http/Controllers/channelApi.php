@@ -19,15 +19,14 @@ class channelApi extends Controller
     return [
       'success' => true,
       'author' => true,
-      'channel' => Channel::find($request->user()->id)
+      'channel' => $request->user()->channel
     ];
   }
 
   //Get any channel details
   public function show(Request $request, $id) {
     $channel = Channel::find($id);
-    $user_id = $request->user()->id;
-    $is_author = ($user_id === $channel->first()->id);
+    $is_author = ($request->user()->id === $channel->id);
     return [
       'success' => true,
       'author' => $is_author,
@@ -118,7 +117,7 @@ class channelApi extends Controller
   // Get videos of a channel [no param for own videos]
   public function getChannelVideos(Request $request, $id = null) {
     $id = $id??$request->user()->id;
-    $videos = ($request->user()->tokenCan('admin') || $request->user()->id === $id)
+    $videos = ($request->user()->is_admin || $request->user()->id === $id)
       ?Video::where('channel_id', $id)->latest()->cursorPaginate($this->maxDataPerRequest)
       :Video::where('channel_id', $id)->where('visibility', 'public')->latest()->cursorPaginate($this->maxDataPerRequest);
     return [

@@ -1,8 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Video;
 use App\Models\Channel;
 use Validator;
 use Illuminate\Auth\Events\Registered;
@@ -10,27 +12,72 @@ use Stevebauman\Location\Facades\Location;
 use Hash;
 use Socialite;
 
-class userAuthApi extends Controller
+class AuthApi extends Controller
 {
+  
+  // Create Account manually
+  public function register(Request $request) {
+    $request->validate([
+      'name' => 'bail|required',
+      'email' => 'bail|required|email|unique:users,email',
+      'password' => 'bail|required|confirmed|min:8',
+    ]);
+    $user = User::create([
+      'email' => $request->email,
+      'password' => bcrypt($request->password)
+    ]);
+    $channel = Channel::create([
+      'name' => $request->name,
+      'logo_path' => 'assets/user_logo.png',
+      'logo_url' => URL::signedRoute('file.serve', ['type' => 'logo', 'id' => $user->id]),
+      'country' => 'Bangladesh'//Location::get($request->ip())->countryName);
+    ]);
+    if($user && $channel){
+      event(new Registered($user));
+      return ['success' => true, 'message' => 'Your account is successfully created!'];
+    }
+    return response()->json(['success' => false,
+        'message' => 'Failed to create account!'], 451);
+  }
 
-  /**
-  * Get a Token via given credentials.
-  *
-  * @return \Illuminate\Http\JsonResponse
-  */
+  // Login to Account manually
+  public function login(Request $request) {
+    $request->validate([
+      'email' => 'bail|required|email',
+      'password' => 'bail|required',
+    ]);
+    $user = User::where('email', $request->email)->first();
+    if(!$user || !Hash::check($request->password, $user->password)){
+      return response()->json(['success'=>false, 'message'=>'Credentials not match!'], 401);
+    }
+    $token = ($user->is_admin)
+      ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
+      :$user->createToken("API TOKEN", ['user'])->plainTextToken;
+    
+    return ['success' => true,
+        'access_token' => $token];
+  }
 
+  // Reditect user to select an owned email for register or login
   public function googleRedirect() {
     return Socialite::driver('google')->stateless()->redirect();
   }
 
-
+  // Login or Create account using Google Socialite
   public function loginWithGoogle() {
     $user = Socialite::driver('google')->stateless()->user();
-    $existingUser = User::where('google_id', $user->id)->first();
+    $existingUser = User::where('email', $user->email)->first();
     if ($existingUser) {
+      if($existingUser->google_id === null){
+        $existingUser->google_id = $user->id;
+        $existingUser->save();
+      }
+      $token = ($existingUser->is_admin)
+        ?$existingUser->createToken("API TOKEN", ['admin'])->plainTextToken
+        :$existingUser->createToken("API TOKEN", ['user'])->plainTextToken;
       return [
         'success' => true,
-        'access_token' => $existingUser->createToken("API TOKEN", ['user'])->plainTextToken
+        'access_token' => $token
       ];
     } else {
       $createUser = User::create([
@@ -52,9 +99,15 @@ class userAuthApi extends Controller
   
  // Create new token
   public function refresh(Request $request) {
-    if ($request->user()->currentAccessToken()->delete()) {
-      return ['success' => true,
-        'access_token' => $request->user()->createToken("API TOKEN", ['user'])->plainTextToken];
+    $user = $request->user();
+    if ($user->currentAccessToken()->delete()) {
+      $token = ($user->is_admin)
+        ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
+        :$user->createToken("API TOKEN", ['user'])->plainTextToken;
+      return [
+        'success' => true,
+        'access_token' => $token
+      ];
     }
     return response()->json(['success' => false], 451);
   }

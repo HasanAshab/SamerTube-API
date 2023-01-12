@@ -25,7 +25,7 @@ class videoApi extends Controller
 
   //Get all public videos
   public function explore(Request $request) {
-    return ($request->user()->tokenCan('admin'))
+    return ($request->user()->is_admin)
       ?Video::where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest)
       :Video::query()->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
   }
@@ -110,28 +110,21 @@ class videoApi extends Controller
 
   // Get details of a video to watch
   public function watch(Request $request, $id) {
-    if ($request->user()->tokenCan('admin')) {
-      $video = Video::where('id', $id)->channel(['name', 'logo_url', 'total_subscribers'])->first();
-      $video->author = false;
-      $video->subscribed = null;
-      return $video;
-    }
     $video = Video::where('id', $id)->channel(['name', 'logo_url', 'total_subscribers'])->first();
-    $user_id = $request->user()->id;
-    if ($video->visibility === 'private' && $video->channel_id !== $user_id) {
+    if (!$request->user()->is_admin && $video->visibility === 'private' && $video->channel_id !== $request->user()->id) {
       return accessDenied();
     }
-    $old_history = History::where('user_id', $user_id)->where('type', 'video')->where('history', $id)->first();
+    $old_history = History::where('user_id', $request->user()->id)->where('type', 'video')->where('history', $id)->first();
     if ($old_history !== null) {
       $old_history->delete();
     }
     $history = new History;
-    $history->user_id = $user_id;
+    $history->user_id = $request->user()->id;
     $history->type = 'video';
     $history->history = $id;
     $history->save();
-    $video->author = ($video->channel_id === $user_id);
-    $video->subscribed = Subscriber::where('subscriber_id', $user_id)->where('channel_id', $video->channel_id)->exists();
+    $video->author = ($video->channel_id === $request->user()->id);
+    $video->subscribed = Subscriber::where('subscriber_id', $request->user()->id)->where('channel_id', $video->channel_id)->exists();
     return $video;
   }
 
@@ -147,14 +140,14 @@ class videoApi extends Controller
   public function destroy(Request $request, $id) {
     $video = Video::find($id);
 
-    if ($request->user()->tokenCan('user') && $video->channel_id !== $request->user()->id) {
+    if (!$request->user()->is_admin && $video->channel_id !== $request->user()->id) {
       return accessDenied();
     }
     $r3 = $video->delete();
     $r1 = $this->clear($video->video_path);
     $r2 = $this->clear($video->thumbnail_path);
     if ($r1 && $r2 && $r3) {
-      Channel::find($video->channel_id)->decrement('total_videos', 1);
+      $video->channel->decrement('total_videos', 1);
       return ['success' => true,
         'message' => 'Video successfully deleted!'];
     }
@@ -171,16 +164,7 @@ class videoApi extends Controller
 
   // Get search suggestion
   public function suggestions(Request $request, $query = null) {
-    if ($request->user()->tokenCan('admin')) {
-      $titles = Video::where('title', 'like', $query.'%')->rank()->limit(15)->get('title');
-      $suggestions = array();
-      foreach ($titles as $title) {
-        array_push($suggestions, array('suggestion' => $title->title));
-      }
-      return $suggestions;
-    }
-    $id = $request->user()->id;
-    $history = History::where('user_id', $id)->where('history', 'like', $query.'%')->where('type', 'search')->limit(20)->get(['id', 'history']);
+    $history = History::where('user_id', $request->user()->id)->where('history', 'like', $query.'%')->where('type', 'search')->limit(20)->get(['id', 'history']);
     $suggestions = array();
     foreach ($history as $title) {
       array_push($suggestions, array('history' => true, 'id' => $title->id, 'suggestion' => $title->history));
@@ -188,7 +172,9 @@ class videoApi extends Controller
     if ($query === null) {
       return $suggestions;
     }
-    $titles = Video::where('visibility', 'public')->where('title', 'like', $query.'%')->rank()->limit(10)->get('title');
+    $titles = Video::when(!$request->user()->is_admin, function ($query){
+      return $query->where('visibility', 'public');
+    })->where('title', 'like', $query.'%')->rank()->limit(10)->get('title');
     foreach ($titles as $title) {
       array_push($suggestions, array('history' => false, 'suggestion' => $title->title));
     }
@@ -203,17 +189,16 @@ class videoApi extends Controller
       'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
     ]);
     if ($query === null) {
-      if ($request->user()->tokenCan('admin')) {
-        $videos = Video::where('category', $request->category)->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-      } else {
-        $videos = Video::where('visibility', 'public')->when($request->category !== null, function ($query) use($request) {
+        $videos = Video::when(!$request->user()->is_admin, function ($query){
+          $query->where('visibility', 'public');
+        })->when($request->category !== null, function ($query) use($request) {
           $query->where('category', $request->category);
         })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-      }
       return $videos;
     }
-    $videos = Video::where('title', 'like', $query.'%')->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-    if ($request->user()->tokenCan('user')) {
+    $videos = Video::where('title', 'like', $query.'%')->when($request->user()->is_admin, function ($query){
+      $query->where('visibility', 'public');
+    })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
       $old_history = History::where('user_id', $request->user()->id)->where('type', 'search')->where('history', $query)->first();
       if ($old_history !== null) {
         $old_history->delete();
@@ -224,7 +209,7 @@ class videoApi extends Controller
       $history->history = $query;
       $history->save();
       $videos = Video::where('visibility', 'public')->where('title', 'like', $query.'%')->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-    }
+    
     return $videos;
   }
 
@@ -332,14 +317,12 @@ class videoApi extends Controller
   // Get all comments of a specific video
   public function getComments(Request $request, $video_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->tokenCan('user') && ($video->visibility === "private" && $video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->is_admin && ($video->visibility === "private" && $video->channel_id !== $request->user()->id)) {
       return accessDenied();
     }
     $comments = $video->comments;
     foreach ($comments as $comment) {
-      if ($request->user()->tokenCan('user')) {
-        $comment->review = CommentReview::where([['comment_id', $comment->id], ['reviewer_id', $request->user()->id]])->value('review');
-      }
+      $comment->review = CommentReview::where([['comment_id', $comment->id], ['reviewer_id', $request->user()->id]])->value('review');
       $comment->author = ($comment->commenter_id === $video->channel_id);
     }
     return $comments;
@@ -348,14 +331,12 @@ class videoApi extends Controller
   // Get all comments of a video with 1 highlighted one. for notification view
   public function getCommentsWithHighlighted(Request $request, $video_id, $comment_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->tokenCan('user') && ($video->visibility === "private" && $video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->is_admin && ($video->visibility === "private" && $video->channel_id !== $request->user()->id)) {
       return accessDenied();
     }
     $comments = $video->comments;
     foreach ($comments as $comment) {
-      if ($request->user()->tokenCan('user')) {
-        $comment->review = CommentReview::where([['comment_id', $comment->id], ['reviewer_id', $request->user()->id]])->value('review');
-      }
+      $comment->review = CommentReview::where([['comment_id', $comment->id], ['reviewer_id', $request->user()->id]])->value('review');
       $comment->highlight = ($comment->id == $comment_id);
       $comment->author = ($comment->commenter_id === $video->channel_id);
     }
@@ -387,15 +368,12 @@ class videoApi extends Controller
   // Delete a comment
   public function removeComment(Request $request, $comment_id) {
     $comment = Comment::find($comment_id);
-
-    $video = Video::find($comment->video_id);
-    $channel_id = $video->value('channel_id');
     $user_id = $request->user()->id;
-    if ($request->user()->tokenCan('admin') || $comment->commenter_id === $user_id || $channel_id === $user_id) {
+    if ($request->user()->is_admin || $comment->commenter_id === $user_id || $comment->video->channel_id === $user_id) {
       $result = $comment->delete();
       if ($result) {
-        Video::find($video_id)->decrement('comment_count', 1);
-        Channel::find($video->channel_id)->decrement('total_comments', 1);
+        $comment->video->decrement('comment_count', 1);
+        $comment->video->channel->decrement('total_comments', 1);
         return ['success' => true,
           'message' => 'Comment successfully deleted!'];
       }
@@ -495,14 +473,12 @@ class videoApi extends Controller
   public function getReplies(Request $request, $comment_id) {
     $comment = Comment::find($comment_id);
 
-    if (!$request->user()->tokenCan('user') && ($comment->video->visibility === "private" && $comment->video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->is_admin && ($comment->video->visibility === "private" && $comment->video->channel_id !== $request->user()->id)) {
       return accessDenied();
     }
     $replies = $comment->replies;
     foreach ($replies as $reply) {
-      if ($request->user()->tokenCan('user')) {
-        $reply->review = ReplyReview::where([['reply_id', $reply->id], ['reviewer_id', $request->user()->id]])->value('review');
-      }
+      $reply->review = ReplyReview::where([['reply_id', $reply->id], ['reviewer_id', $request->user()->id]])->value('review');
       $reply->author = ($reply->replier_id === $comment->video->channel_id);
     }
     return $replies;
@@ -513,9 +489,7 @@ class videoApi extends Controller
     $comment = Comment::find($comment_id);
     $replies = $comment->replies;
     foreach ($replies as $reply) {
-      if ($request->user()->tokenCan('user')) {
-        $reply->review = ReplyReview::where([['reply_id', $reply->id], ['reviewer_id', $request->user()->id]])->value('review');
-      }
+      $reply->review = ReplyReview::where([['reply_id', $reply->id], ['reviewer_id', $request->user()->id]])->value('review');
       $reply->highlight = ($reply->id == $reply_id);
       $reply->author = ($reply->replier_id === $comment->video->channel_id);
     }
@@ -550,10 +524,10 @@ class videoApi extends Controller
     $reply = Reply::find($reply_id);
 
     $user_id = $request->user()->id;
-    if ($request->user()->tokenCan('admin') || $reply->replier_id === $user_id || $reply->video->channel_id === $user_id) {
+    if ($request->user()->is_admin || $reply->replier_id === $user_id || $reply->video->channel_id === $user_id) {
       $result = $reply->delete();
       if ($result) {
-        Comment::find($reply->comment_id)->decrement('reply_count', 1);
+        $reply->comment->decrement('reply_count', 1);
         return ['success' => true,
           'message' => 'reply successfully deleted!'];
       }
@@ -667,7 +641,7 @@ class videoApi extends Controller
   }
 
   // Hide a Notification
-  public function hideNotification(Request $request, $notification_id) {
+  public function hideNotification(Request $request, $notification_id){
     $hidden = new Hidden;
     $hidden->user_id = $request->user()->id;
     $hidden->notification_id = $notification_id;
@@ -711,3 +685,4 @@ class videoApi extends Controller
   protected function clear($path) {
     return unlink(storage_path("app/public/$path"));
   }
+}

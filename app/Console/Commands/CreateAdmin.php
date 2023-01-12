@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Console\Command;
-use App\Models\Admin;
+use App\Models\User;
+use App\Models\Channel;
 
 class CreateAdmin extends Command
 {
@@ -13,7 +14,7 @@ class CreateAdmin extends Command
      *
      * @var string
      */
-    protected $signature = 'make:admin {name} {email} {password}';
+    protected $signature = 'make:admin {name} {email} {country} {password}';
 
     /**
      * The console command description.
@@ -29,14 +30,24 @@ class CreateAdmin extends Command
      */
     public function handle()
     {
-      $admin = new Admin;
-      $admin->name = $this->argument('name');
+      $admin = new User;
       $admin->email = $this->argument('email');
       $admin->password = bcrypt($this->argument('password'));
-      if($admin->save()){
-        $this->info("Successfully created new admin");
+      $admin->is_admin = 1;
+      if($admin->save() && $this->createChannel($admin->id, $this->argument('name'), $this->argument('country'))){
+        $admin->markEmailAsVerified();
+        $this->info("Successfully created admin");
         return Command::SUCCESS;
       }
-      $this->info("Failed to create new admin");
+      $this->info("Failed to create admin");
+    }
+    
+    protected function createChannel($id, $name, $country) {
+      $channel = new Channel;
+      $channel->name = $name;
+      $channel->logo_path = 'assets/admin_logo.jpg';
+      $channel->logo_url = URL::signedRoute('file.serve', ['type' => 'logo', 'id' => $id]);
+      $channel->country = $country;
+      return $channel->save();
     }
 }

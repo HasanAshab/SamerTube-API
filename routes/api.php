@@ -1,16 +1,16 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\VerifyEmailController;
+use App\Http\Controllers\VerifyEmailApi;
 use App\Http\Controllers\adminApi;
-use App\Http\Controllers\userAuthApi;
+use App\Http\Controllers\AuthApi;
 use App\Http\Controllers\channelApi;
 use App\Http\Controllers\videoApi;
 use App\Http\Controllers\fileApi;
 use Illuminate\Http\Request;
-// Endpoints to Verify email
-Route::get('/email/verify/{id}/{hash}', [VerifyEmailController::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
-Route::post('/email/verify/resend', [VerifyEmailController::class, 'resend'])->middleware(['auth:api', 'throttle:6,1'])->name('verification.send');
 
+// Endpoints to Verify email
+Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middleware(['auth:api', 'throttle:6,1'])->name('verification.send');
 
 // Endpoints for Admin services
 Route::group([
@@ -18,11 +18,6 @@ Route::group([
   'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
 
 ], function ($router) {
-  Route::post('login', [adminApi::class, 'login'])->withoutMiddleware(['auth:sanctum', 'abilities:admin']);
-  Route::post('logout', [adminApi::class, 'logout']);
-  Route::post('logout-all', [adminApi::class, 'logoutAllDevices']);
-  Route::post('refresh', [adminApi::class, 'refresh']);
-  Route::delete('delete', [adminApi::class, 'destroy']);
   Route::post('category', [adminApi::class, 'addCategory']);
   Route::get('user', [adminApi::class, 'getUsers']);
   Route::get('channel', [adminApi::class, 'getChannels']);
@@ -32,17 +27,19 @@ Route::group([
 });
 
 
-// Endpoints for Authenticate user
+// Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
-  'middleware' => ['api', 'auth:sanctum', 'abilities:user']
+  'middleware' => ['api', 'auth:sanctum']
 ], function ($router) {
-  Route::get('google', [userAuthApi::class, 'googleRedirect'])->withoutMiddleware(['auth:sanctum', 'abilities:user']);
-  Route::get('google/callback', [userAuthApi::class, 'loginWithGoogle'])->withoutMiddleware(['auth:sanctum', 'abilities:user']);
-  Route::post('logout', [userAuthApi::class, 'logout']);
-  Route::post('logout-all', [userAuthApi::class, 'logoutAllDevices']);
-  Route::post('refresh', [userAuthApi::class, 'refresh']);
-  Route::delete('delete', [userAuthApi::class, 'destroy']);
+  Route::post('register', [AuthApi::class, 'register'])->withoutMiddleware(['auth:sanctum']);
+  Route::post('login', [AuthApi::class, 'login'])->withoutMiddleware(['auth:sanctum']);
+  Route::get('google', [AuthApi::class, 'googleRedirect'])->withoutMiddleware(['auth:sanctum']);
+  Route::get('google/callback', [AuthApi::class, 'loginWithGoogle'])->withoutMiddleware(['auth:sanctum']);
+  Route::post('logout', [AuthApi::class, 'logout']);
+  Route::post('logout-all', [AuthApi::class, 'logoutAllDevices']);
+  Route::post('refresh', [AuthApi::class, 'refresh']);
+  Route::delete('delete', [AuthApi::class, 'destroy']);
 });
 
 //Endpoints for  Serve files from server storage
@@ -50,38 +47,38 @@ Route::get('file/{type}/{id}', [fileApi::class, 'index'])->middleware('signed')-
 
 // Endpoints for logged in users
 Route::group([
-  'middleware' => ['api', 'auth:sanctum', 'abilities:user']
+  'middleware' => ['api', 'auth:sanctum', 'verified']
 ], function ($router) {
   Route::get('channel', [channelApi::class, 'index']);
-  Route::get('channel/{id}', [channelApi::class, 'show'])->withoutMiddleware('abilities:user')->name('channel.show');
+  Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
   Route::put('channel', [channelApi::class, 'update']);
   Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
   Route::post('subscribe/{channel_id}', [channelApi::class, 'handleSubscribe']);
   Route::get('subscriptions', [channelApi::class, 'subscriptions']);
   //Route::post('video/upload', [videoApi::class, 'store']);
-  Route::get('explore', [videoApi::class, 'explore'])->withoutMiddleware('abilities:user');
+  Route::get('explore', [videoApi::class, 'explore']);
   Route::put('video/{id}', [videoApi::class, 'update']);
-  Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->withoutMiddleware('abilities:user')->name('video.watch');
-  Route::delete('video/{id}', [videoApi::class, 'destroy'])->withoutMiddleware('abilities:user');
-  Route::post('increase-view/{id}', [videoApi::class, 'increaseView'])->withoutMiddleware('abilities:user');
+  Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
+  Route::delete('video/{id}', [videoApi::class, 'destroy']);
+  Route::post('increase-view/{id}', [videoApi::class, 'increaseView']);
   Route::get('notification', [videoApi::class, 'getNotifications']);
   Route::post('notification/hide/{notification_id}', [videoApi::class, 'hideNotification']);
-  Route::get('categories', [videoApi::class, 'category'])->withoutMiddleware('abilities:user');
-  Route::get('suggestions/{query?}', [videoApi::class, 'suggestions'])->withoutMiddleware('abilities:user');
-  Route::get('search/{query?}', [videoApi::class, 'search'])->withoutMiddleware('abilities:user');
+  Route::get('categories', [videoApi::class, 'category']);
+  Route::get('suggestions/{query?}', [videoApi::class, 'suggestions']);
+  Route::get('search/{query?}', [videoApi::class, 'search']);
   Route::get('history', [videoApi::class, 'watchHistory']);
   Route::post('review/{video_id}', [videoApi::class, 'postReview']);
   Route::get('review/{video_id}', [videoApi::class, 'getReview']);
   Route::post('comment/{video_id}', [videoApi::class, 'postComment']);
-  Route::get('comment/{video_id}', [videoApi::class, 'getComments'])->withoutMiddleware('abilities:user');
-  Route::get('comment/highlighted/{video_id}/{comment_id}', [videoApi::class, 'getCommentsWithHighlighted'])->middleware('signed')->withoutMiddleware('abilities:user')->name('comments.highlighted');
+  Route::get('comment/{video_id}', [videoApi::class, 'getComments']);
+  Route::get('comment/highlighted/{video_id}/{comment_id}', [videoApi::class, 'getCommentsWithHighlighted'])->middleware('signed')->name('comments.highlighted');
   Route::put('comment/{comment_id}', [videoApi::class, 'updateComment']);
-  Route::delete('comment/{comment_id}', [videoApi::class, 'removeComment'])->withoutMiddleware('abilities:user');
+  Route::delete('comment/{comment_id}', [videoApi::class, 'removeComment']);
   Route::post('review/comment/{comment_id}', [videoApi::class, 'postCommentReview']);
   Route::post('reply/{comment_id}', [videoApi::class, 'postReply']);
-  Route::get('reply/{comment_id}', [videoApi::class, 'getReplies'])->withoutMiddleware('abilities:user');
-  Route::get('reply/highlighted/{comment_id}/{reply_id}', [videoApi::class, 'getRepliesWithHighlighted'])->middleware('signed')->withoutMiddleware('abilities:user')->name('replies.highlighted');
-  Route::delete('reply/{comment_id}', [videoApi::class, 'removeReply'])->withoutMiddleware('abilities:user');
+  Route::get('reply/{comment_id}', [videoApi::class, 'getReplies']);
+  Route::get('reply/highlighted/{comment_id}/{reply_id}', [videoApi::class, 'getRepliesWithHighlighted'])->middleware('signed')->name('replies.highlighted');
+  Route::delete('reply/{comment_id}', [videoApi::class, 'removeReply']);
   Route::post('review/reply/{reply_id}', [videoApi::class, 'postReplyReview']);
   Route::post('heart/{type}/{id}', [videoApi::class, 'giveHeart']);
   Route::delete('history/{history_id}', [videoApi::class, 'removeHistory']);

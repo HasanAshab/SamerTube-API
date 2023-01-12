@@ -9,16 +9,35 @@ use Carbon\Carbon;
 
 class Reply extends Model
 {
-    use HasFactory;
-    use \Znck\Eloquent\Traits\BelongsToThrough;
-    
-    public function video(){
-      return $this->belongsToThrough(Video::class, Comment::class);
-    }
-    
-    protected function createdAt(): Attribute{
-      return new Attribute(
-        get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
-      );
+  use HasFactory;
+  use \Znck\Eloquent\Traits\BelongsToThrough;
+
+  protected $appends = ['edited'];
+  protected $hidden = ['updated_at'];
+
+  public function video() {
+    return $this->belongsToThrough(Video::class, Comment::class);
+  }
+
+  public function comment() {
+    return $this->belongsTo(Comment::class);
+  }
+
+  protected function createdAt(): Attribute {
+    return new Attribute(
+      get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
+    );
+  }
+  
+  protected function updatedAt(): Attribute {
+    return new Attribute(
+      get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
+    );
+  }
+  
+  protected function edited(): Attribute {
+    return new Attribute(
+      get: fn() => $this->created_at !== $this->updated_at,
+    );
   }
 }
