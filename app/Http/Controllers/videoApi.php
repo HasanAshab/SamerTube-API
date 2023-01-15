@@ -16,6 +16,9 @@ use App\Models\Reply;
 use App\Models\Subscriber;
 use App\Models\Notification;
 use App\Models\Hidden;
+use App\Models\Playlist;
+use App\Models\PlaylistVideo;
+use App\Models\SavedPlaylist;
 use Carbon\Carbon;
 
 class videoApi extends Controller
@@ -26,8 +29,8 @@ class videoApi extends Controller
   //Get all public videos
   public function explore(Request $request) {
     return ($request->user()->is_admin)
-      ?Video::where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest)
-      :Video::query()->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
+    ?Video::where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest)
+    :Video::query()->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
   }
 
   // Save a new video
@@ -137,10 +140,10 @@ class videoApi extends Controller
   }
 
   // Delete own video
-  public function destroy(Request $request, $id) {
+  public function destroy($id) {
     $video = Video::find($id);
 
-    if (!$request->user()->is_admin && $video->channel_id !== $request->user()->id) {
+    if (!auth()->user()->is_admin && $video->channel_id !== auth()->user()->id) {
       return accessDenied();
     }
     $r3 = $video->delete();
@@ -172,7 +175,7 @@ class videoApi extends Controller
     if ($query === null) {
       return $suggestions;
     }
-    $titles = Video::when(!$request->user()->is_admin, function ($query){
+    $titles = Video::when(!$request->user()->is_admin, function ($query) {
       return $query->where('visibility', 'public');
     })->where('title', 'like', $query.'%')->rank()->limit(10)->get('title');
     foreach ($titles as $title) {
@@ -189,27 +192,27 @@ class videoApi extends Controller
       'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
     ]);
     if ($query === null) {
-        $videos = Video::when(!$request->user()->is_admin, function ($query){
-          $query->where('visibility', 'public');
-        })->when($request->category !== null, function ($query) use($request) {
-          $query->where('category', $request->category);
-        })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
+      $videos = Video::when(!$request->user()->is_admin, function ($query) {
+        $query->where('visibility', 'public');
+      })->when($request->category !== null, function ($query) use($request) {
+        $query->where('category', $request->category);
+      })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
       return $videos;
     }
-    $videos = Video::where('title', 'like', $query.'%')->when($request->user()->is_admin, function ($query){
+    $videos = Video::where('title', 'like', $query.'%')->when($request->user()->is_admin, function ($query) {
       $query->where('visibility', 'public');
     })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-      $old_history = History::where('user_id', $request->user()->id)->where('type', 'search')->where('history', $query)->first();
-      if ($old_history !== null) {
-        $old_history->delete();
-      }
-      $history = new History;
-      $history->user_id = $request->user()->id;
-      $history->type = 'search';
-      $history->history = $query;
-      $history->save();
-      $videos = Video::where('visibility', 'public')->where('title', 'like', $query.'%')->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-    
+    $old_history = History::where('user_id', $request->user()->id)->where('type', 'search')->where('history', $query)->first();
+    if ($old_history !== null) {
+      $old_history->delete();
+    }
+    $history = new History;
+    $history->user_id = $request->user()->id;
+    $history->type = 'search';
+    $history->history = $query;
+    $history->save();
+    $videos = Video::where('visibility', 'public')->where('title', 'like', $query.'%')->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
+
     return $videos;
   }
 
@@ -327,7 +330,7 @@ class videoApi extends Controller
     }
     return $comments;
   }
-  
+
   // Get all comments of a video with 1 highlighted one. for notification view
   public function getCommentsWithHighlighted(Request $request, $video_id, $comment_id) {
     $video = Video::find($video_id);
@@ -483,7 +486,7 @@ class videoApi extends Controller
     }
     return $replies;
   }
-  
+
   // Get all Replies of a comment with 1 highlighted one. for notification view
   public function getRepliesWithHighlighted(Request $request, $comment_id, $reply_id) {
     $comment = Comment::find($comment_id);
@@ -585,30 +588,30 @@ class videoApi extends Controller
     }
     return response()->json(['success' => false], 451);
   }
-  
+
   // Give heart on a comment or reply
   public function giveHeart($type, $id) {
     $user_id = auth()->user()->id;
     $comment = ($type == "comment")
-      ?Comment::find($id)
-      :Reply::find($id);
+    ?Comment::find($id)
+    :Reply::find($id);
     if ($comment->video->channel_id !== $user_id) {
       return accessDenied();
     }
     $comment->heart = intval(!$comment->heart);
     $result = $comment->save();
     if ($result) {
-      if($comment->heart)
-      $name = Channel::where('id', $user_id)->value('name');
+      if ($comment->heart)
+        $name = Channel::where('id', $user_id)->value('name');
       $text = "Your comment got a ❤️ from $name!";
       $notification = new Notification;
       $notification->from = $user_id;
       $notification->for = ($type == "comment")
-        ?$comment->commenter_id
-        :$comment->replier_id;
+      ?$comment->commenter_id
+      :$comment->replier_id;
       $notification->url = ($type == "comment")
-        ?URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $id])
-        :URL::signedRoute('replies.highlighted', ['comment_id' => $comment_id, 'reply_id' => $id]);
+      ?URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $id])
+      :URL::signedRoute('replies.highlighted', ['comment_id' => $comment_id, 'reply_id' => $id]);
       $notification->type = "heart";
       $notification->text = $text;
       $notification->logo_url = $comment->video->channel->logo_url;
@@ -631,17 +634,17 @@ class videoApi extends Controller
     foreach ($subscriptions as $subscription) {
       array_push($subscriptions_id, $subscription->channel_id);
     }
-    
+
     $notifications = Notification::where(function ($query) use ($subscriptions_id) {
       $query->where('type', 'video')->whereIn('from', $subscriptions_id);
-    })->orWhere(function ($query) use ($id){
+    })->orWhere(function ($query) use ($id) {
       $query->whereIn('type', ['comment', 'reply', 'heart', 'subscribe', 'like'])->where('for', $id);
     })->whereNotIn('id', $hidden_notifications_id)->latest()->limit(40)->get();
     return $notifications;
   }
 
   // Hide a Notification
-  public function hideNotification(Request $request, $notification_id){
+  public function hideNotification(Request $request, $notification_id) {
     $hidden = new Hidden;
     $hidden->user_id = $request->user()->id;
     $hidden->notification_id = $notification_id;
@@ -674,6 +677,198 @@ class videoApi extends Controller
     return accessDenied();
   }
 
+  // Get a users saved, created and liked videos Playlist
+  public function getPlaylists(Request $request) {
+    $saved_playlists = SavedPlaylist::where('user_id', $request->user()->id)->select('playlist_id')->get();
+    $saved_playlists_id = array();
+    foreach ($saved_playlists as $saved_playlist){
+      array_push($saved_playlists_id, $saved_playlist->playlist_id);
+    }
+    $playlists = Playlist::where('user_id', $request->user()->id)->orWhere(function ($query) use ($saved_playlists_id){
+      $query->whereIn('id', $saved_playlists_id);
+    })->orderByDesc('updated_at')->get();
+    return $playlists;
+  }
+
+  // Create a playlist
+  public function createPlaylist(Request $request) {
+    $request->validate([
+      'name' => 'bail|required|string|between:1,30',
+      'description' => 'bail|string|max:300',
+      'visibility' => 'bail|required|in:public,private',
+    ]);
+    $playlist = new Playlist;
+    $playlist->user_id = $request->user()->id;
+    $playlist->name = $request->name;
+    $playlist->description = $request->description;
+    $playlist->visibility = $request->visibility;
+    $playlist->link = URL::signedRoute('playlist.videos', ['id' => $playlist->getNextId()]);
+    if ($playlist->save()) {
+      return ['success' => true,
+        'message' => 'Playlist successfully created!'];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to create playlist!'
+    ], 451);
+  }
+
+  // Update a playlist
+  public function updatePlaylist(Request $request, $id) {
+    $request->validate([
+      'name' => 'bail|required|string|between:1,30',
+      'description' => 'bail|string|max:300',
+      'visibility' => 'bail|required|in:public,private',
+    ]);
+    $playlist = Playlist::find($id);
+    if (!$request->user()->is_admin && $playlist->user_id !== $request->user()->id) {
+      return accessDenied();
+    }
+    $playlist->name = $request->name;
+    $playlist->description = $request->description;
+    $playlist->visibility = $request->visibility;
+    if ($playlist->save()) {
+      return ['success' => true,
+        'message' => 'Playlist successfully updated!'];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to update playlist!'
+    ], 451);
+  }
+
+  // Remove a playlist
+  public function removePlaylist($id) {
+    $playlist = Playlist::find($id);
+    if (!auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+      return accessDenied();
+    }
+    if ($playlist->delete()) {
+      return [
+        'success' => true,
+        'message' => 'Playlist successfully deleted!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to delete playlist!'
+    ], 451);
+  }
+
+  // Save others public playlist
+  public function savePlaylist($id) {
+    if (SavedPlaylist::where('user_id', auth()->user()->id)->where('playlist_id', $id)->exists()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Playlist already exist in library!'
+      ], 451);
+    }
+    $playlist = Playlist::find($id);
+    if ($playlist->visibility === "private" && !auth()->user()->is_admin) {
+      return accessDenied();
+    }
+    if ($playlist->user_id === auth()->user()->id) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Can\'t save your own playlist!'
+      ], 406);
+    }
+    $saved_playlist = new SavedPlaylist;
+    $saved_playlist->user_id = auth()->user()->id;
+    $saved_playlist->playlist_id = $id;
+    if ($saved_playlist->save()) {
+      return [
+        'success' => true,
+        'message' => 'Playlist saved to library!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed saving playlist to library!'
+    ], 451);
+  }
+
+  // Remove saved playlist
+  public function removeSavedPlaylist($id) {
+    $result = SavedPlaylist::where('user_id', auth()->user()->id)->where('playlist_id', $id)->delete();
+    if ($result) {
+      return [
+        'success' => true,
+        'message' => 'Playlist removed from library!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed removing playlist from library!'
+    ], 451);
+  }
+
+  // Add video to playlist
+  public function addVideoToPlaylist($playlist_id, $video_id) {
+    if (!Video::find($video_id)) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Video not found!'
+      ], 404);
+    }
+    $playlist = Playlist::find($playlist_id);
+    if (!auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+      return accessDenied();
+    }
+    $playlist_video_exists = PlaylistVideo::where('playlist_id', $playlist_id)->where('video_id', $video_id)->exists();
+    if ($playlist_video_exists) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Video already exist in the playlist!'
+      ], 451);
+    }
+    $playlist_video = new PlaylistVideo;
+    $playlist_video->playlist_id = $playlist_id;
+    $playlist_video->video_id = $video_id;
+    if ($playlist_video->save()) {
+      $playlist->increment('total_videos', 1);
+      return ['success' => true,
+        'message' => 'Video added to &quot;'.$playlist->name.'&quot;!'];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to add video!'
+    ], 451);
+  }
+
+  // Remove video from a playlist
+  public function removeVideoFromPlaylist($playlist_id, $video_id) {
+    $playlist = Playlist::find($playlist_id);
+    if (!auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+      return accessDenied();
+    }
+    if (PlaylistVideo::where('playlist_id', $playlist_id)->where('video_id', $video_id)->delete()) {
+      $playlist->decrement('total_videos', 1);
+      return [
+        'success' => true,
+        'message' => 'Video removed from &quot;'.$playlist->name.'&quot;!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to remove video!'
+    ], 451);
+  }
+
+  // Get all videos of a playlist
+  public function getPlaylistVideos($id) {
+    $playlist = Playlist::find($id);
+    if ($playlist->visibility === "private" && !auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+      return accessDenied();
+    }
+    $playlist_videos = array();
+    foreach ($playlist->videos as $playlist_video) {
+      $video = Video::where('id', $playlist_video->video_id)->channel(['name'])->first();
+      array_push($playlist_videos, $video);
+    }
+    return $playlist_videos;
+  }
+
   // Save a uploaded file to server storage
   protected function upload($path, $file) {
     $file_extention = $file->extension();
@@ -685,4 +880,5 @@ class videoApi extends Controller
   protected function clear($path) {
     return unlink(storage_path("app/public/$path"));
   }
+
 }

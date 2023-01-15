@@ -84,6 +84,7 @@ class AuthApi extends Controller
         'email' => $user->email,
         'google_id' => $user->id
       ]);
+      $createUser->markEmailAsVerified();
       $createChannel = $this->createChannel($user->name, $user->avatar, 'Bangladesh'); //Location::get($request->ip())->countryName);
 
       if ($createUser and $createChannel) {

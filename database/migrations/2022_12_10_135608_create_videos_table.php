@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('videos', function (Blueprint $table) {
             $table->id();
-            $table->integer('channel_id');
+            $table->foreignId('channel_id')->constrained()->onDelete('cascade');
             $table->string('title', 72);
             $table->string('description', 300);
             $table->string('duration');
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('thumbnail_path');
             $table->string('thumbnail_url');
             $table->string('link');
-            $table->integer('category');
+            $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->string('visibility');
             $table->integer('view_count')->default(0);
             $table->integer('like_count')->default(0);

@@ -15,8 +15,9 @@ return new class extends Migration
     {
         Schema::create('subscribers', function (Blueprint $table) {
             $table->id();
-            $table->integer('subscriber_id');
-            $table->integer('channel_id');
+            $table->unsignedBigInteger('subscriber_id');
+            $table->foreign('subscriber_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreignId('channel_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

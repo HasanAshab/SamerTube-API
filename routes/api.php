@@ -18,6 +18,9 @@ Route::group([
   'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
 
 ], function ($router) {
+  Route::get('/', [adminApi::class, 'getAdmins']);
+  Route::get('/dashboard', [adminApi::class, 'dashboard']);
+  Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
   Route::post('category', [adminApi::class, 'addCategory']);
   Route::get('user', [adminApi::class, 'getUsers']);
   Route::get('channel', [adminApi::class, 'getChannels']);
@@ -82,10 +85,20 @@ Route::group([
   Route::post('review/reply/{reply_id}', [videoApi::class, 'postReplyReview']);
   Route::post('heart/{type}/{id}', [videoApi::class, 'giveHeart']);
   Route::delete('history/{history_id}', [videoApi::class, 'removeHistory']);
+  Route::get('playlist', [videoApi::class, 'getPlaylists']);
+  Route::post('playlist', [videoApi::class, 'createPlaylist']);
+  Route::get('playlist/{id}', [videoApi::class, 'getPlaylistVideos'])->middleware('signed')->name('playlist.videos');
+  Route::put('playlist/{id}', [videoApi::class, 'updatePlaylist']);
+  Route::delete('playlist/{id}', [videoApi::class, 'removePlaylist']);
+  Route::post('playlist/{id}', [videoApi::class, 'savePlaylist']);
+  Route::delete('playlist/saved/{id}', [videoApi::class, 'removeSavedPlaylist']);
+  Route::post('playlist/{playlist_id}/{video_id}', [videoApi::class, 'addVideoToPlaylist']);
+  Route::delete('playlist/{playlist_id}/{video_id}', [videoApi::class, 'removeVideoFromPlaylist']);
+  
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 
 Route::get('/test', function(Request $req){
   // Test user relation ...
-  return $req->user()->channel;
+  return App\Models\PlaylistVideo::all();
 })->middleware('auth:sanctum');

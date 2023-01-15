@@ -15,9 +15,10 @@ return new class extends Migration
     {
         Schema::create('replies', function (Blueprint $table) {
             $table->id();
-            $table->integer('replier_id');
+            $table->unsignedBigInteger('replier_id');
+            $table->foreign('replier_id')->references('id')->on('users')->onDelete('cascade');
             $table->string('text', 300);
-            $table->integer('comment_id');
+            $table->foreignId('comment_id')->constrained()->onDelete('cascade');
             $table->integer('heart')->default(0);
             $table->integer('like_count')->default(0);
             $table->integer('dislike_count')->default(0);

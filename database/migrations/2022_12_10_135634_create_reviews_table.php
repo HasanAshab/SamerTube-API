@@ -15,9 +15,10 @@ return new class extends Migration
     {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
-            $table->integer('reviewer_id');
+            $table->unsignedBigInteger('reviewer_id');
+            $table->foreign('reviewer_id')->references('id')->on('users')->onDelete('cascade');
             $table->integer('review');
-            $table->integer('video_id');
+            $table->foreignId('video_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

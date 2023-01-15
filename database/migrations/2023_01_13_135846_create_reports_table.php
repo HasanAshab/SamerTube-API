@@ -13,10 +13,12 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('hiddens', function (Blueprint $table) {
+        Schema::create('reports', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('notification_id')->constrained()->onDelete('cascade');
+            $table->string('type');
+            $table->integer('for');
+            $table->string('reason', 100);
             $table->timestamps();
         });
     }
@@ -28,6 +30,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('hiddens');
+        Schema::dropIfExists('reports');
     }
 };

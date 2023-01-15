@@ -13,10 +13,14 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('hiddens', function (Blueprint $table) {
+        Schema::create('playlists', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('notification_id')->constrained()->onDelete('cascade');
+            $table->string('name', 30);
+            $table->string('description', 300)->nullable();
+            $table->string('visibility');
+            $table->string('link');
+            $table->integer('total_videos')->default(0);
             $table->timestamps();
         });
     }
@@ -28,6 +32,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('hiddens');
+        Schema::dropIfExists('playlists');
     }
 };
