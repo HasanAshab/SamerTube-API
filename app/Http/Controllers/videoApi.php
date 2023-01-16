@@ -17,6 +17,7 @@ use App\Models\Subscriber;
 use App\Models\Notification;
 use App\Models\Hidden;
 use App\Models\Playlist;
+use App\Models\WatchLater;
 use App\Models\PlaylistVideo;
 use App\Models\SavedPlaylist;
 use Carbon\Carbon;
@@ -39,7 +40,7 @@ class videoApi extends Controller
       'title' => 'bail|required|string|between:1,72',
       'description' => 'bail|required|string|max:300',
       'visibility' => 'bail|required|in:public,private',
-      'category' => 'bail|required|exists:categories,id',
+      'category_id' => 'bail|required|exists:categories,id',
       'video' => 'bail|required|mimes:mp4',
       'thumbnail' => 'bail|required|image'
     ]);
@@ -47,7 +48,7 @@ class videoApi extends Controller
     $video->channel_id = $request->uploader_id; //user()->id;
     $video->title = $request->title;
     $video->description = $request->description;
-    $video->category = $request->category;
+    $video->category_id = $request->category_id;
     $video->visibility = $request->visibility;
     $video->link = URL::signedRoute('video.watch', ['id' => $video->getNextId()]);
     require_once(storage_path('getID3/getid3/getid3.php'));
@@ -83,7 +84,7 @@ class videoApi extends Controller
       'title' => 'bail|required|string|between:1,72',
       'description' => 'bail|required|string|max:300',
       'visibility' => 'bail|required|in:public,private',
-      'category' => 'bail|required|between:1,9',
+      'category_id' => 'bail|required|between:1,9',
       'thumbnail' => 'image'
     ]);
     $video = Video::find($id);
@@ -93,7 +94,7 @@ class videoApi extends Controller
     $video->title = $request->title;
     $video->description = $request->description;
     $video->visibility = $request->visibility;
-    $video->category = $request->category;
+    $video->category_id = $request->category_id;
     if ($request->file('thumbnail') !== null) {
       $this->clear($video->thumbnail_path);
       $video->thumbnail_path = $this->upload('thumbnails', $request->file('thumbnail'));
@@ -187,15 +188,15 @@ class videoApi extends Controller
   // Search from public videos
   public function search(Request $request, $query = null) {
     $request->validate([
-      'category' => 'exists:categories,id',
+      'category_id' => 'exists:categories,id',
       'sort' => 'bail|required|string|in:relevance,view,date,rating',
       'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
     ]);
     if ($query === null) {
       $videos = Video::when(!$request->user()->is_admin, function ($query) {
         $query->where('visibility', 'public');
-      })->when($request->category !== null, function ($query) use($request) {
-        $query->where('category', $request->category);
+      })->when($request->category_id !== null, function ($query) use($request) {
+        $query->where('category_id', $request->category_id);
       })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
       return $videos;
     }
@@ -222,16 +223,24 @@ class videoApi extends Controller
     $dates = History::where('user_id', $id)->where('type', 'video')->distinct('date')->cursorPaginate($this->maxDataPerRequest, ['date']);
     $histories = array('data' => array());
     foreach ($dates->all() as $date) {
-      $date_based_histories = History::where('user_id', $id)->where('type', 'video')->where('date', $date->date)->latest()->get('history');
-      $videos = array();
-      foreach ($date_based_histories as $history) {
-        array_push($videos, $history->video);
-      }
+      $videos = History::where('user_id', $id)->where('type', 'video')->where('date', $date->date)->orderBy('histories.created_at', 'desc')->join('videos', 'videos.id', '=', 'histories.history')->get();
       array_push($histories['data'], ['date' => Carbon::parse($date->date)->format('jS M, Y'), 'videos' => $videos]);
     }
     $histories['next_page_url'] = $dates['next_page_url'];
     $histories['prev_page_url'] = $dates['prev_page_url'];
     return $histories;
+  }
+  
+  // Get liked videos
+  public function getLikedVideos(){
+    $liked_videos_id = Review::where('reviewer_id', auth()->user()->id)->where('review', 1)->pluck('video_id');
+    return Video::whereIn('id', $liked_videos_id)->channel(['name'])->get();
+  }
+  
+  // Get watch later videos
+  public function getWatchLaterVideos(){
+    $watch_later_videos_id = WatchLater::where('user_id', auth()->user()->id)->pluck('video_id');
+    return Video::whereIn('id', $watch_later_videos_id)->channel(['name'])->get();
   }
 
   // Like and dislike on a video
@@ -624,17 +633,8 @@ class videoApi extends Controller
   // Get all notifications of a user
   public function getNotifications(Request $request) {
     $id = $request->user()->id;
-    $subscriptions = Subscriber::where('subscriber_id', $id)->get('channel_id');
-    $hidden_notifications = Hidden::where('user_id', $id)->get('notification_id');
-    $subscriptions_id = array();
-    $hidden_notifications_id = array();
-    foreach ($hidden_notifications as $notification) {
-      array_push($hidden_notifications_id, $notification->notification_id);
-    }
-    foreach ($subscriptions as $subscription) {
-      array_push($subscriptions_id, $subscription->channel_id);
-    }
-
+    $subscriptions_id = Subscriber::where('subscriber_id', $id)->pluck('channel_id');
+    $hidden_notifications_id = Hidden::where('user_id', $id)->pluck('notification_id');
     $notifications = Notification::where(function ($query) use ($subscriptions_id) {
       $query->where('type', 'video')->whereIn('from', $subscriptions_id);
     })->orWhere(function ($query) use ($id) {
@@ -678,15 +678,26 @@ class videoApi extends Controller
   }
 
   // Get a users saved, created and liked videos Playlist
-  public function getPlaylists(Request $request) {
-    $saved_playlists = SavedPlaylist::where('user_id', $request->user()->id)->select('playlist_id')->get();
-    $saved_playlists_id = array();
-    foreach ($saved_playlists as $saved_playlist){
-      array_push($saved_playlists_id, $saved_playlist->playlist_id);
-    }
-    $playlists = Playlist::where('user_id', $request->user()->id)->orWhere(function ($query) use ($saved_playlists_id){
+  public function getPlaylists() {
+    $saved_playlists_id = SavedPlaylist::where('user_id', auth()->user()->id)->pluck('playlist_id');
+    $liked_videos_playlist = [
+      'name' => 'Liked videos',
+      'total_videos' => Review::where('reviewer_id', auth()->user()->id)->where('review', 1)->count(),
+      'link' => route('videos.liked'),
+      'thumbnail_url' => URL::signedRoute('file.serve', ['type' => 'liked-videos'])
+    ];
+    $watch_later = [
+      'name' => 'Watch later',
+      'total_videos' => WatchLater::where('user_id', auth()->user()->id)->count(),
+      'link' => route('videos.watchLater'),
+      'thumbnail_url' => URL::signedRoute('file.serve', ['type' => 'watch-later'])
+    ];
+    $playlists = Playlist::where('user_id', auth()->user()->id)->orWhere(function ($query) use ($saved_playlists_id){
       $query->whereIn('id', $saved_playlists_id);
     })->orderByDesc('updated_at')->get();
+    
+    $playlists->prepend($liked_videos_playlist);
+    $playlists->prepend($watch_later);
     return $playlists;
   }
 
@@ -847,6 +858,57 @@ class videoApi extends Controller
       return [
         'success' => true,
         'message' => 'Video removed from &quot;'.$playlist->name.'&quot;!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to remove video!'
+    ], 451);
+  }
+  
+  // Add video to Watch Later
+  public function addVideoToWatchLater($video_id) {
+    if (!Video::find($video_id)) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Video not found!'
+      ], 404);
+    }
+    $watch_later_video_exists = WatchLater::where('user_id', auth()->user()->id)->where('video_id', $video_id)->exists();
+    if ($watch_later_video_exists) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Video already exist in watch later!'
+      ], 451);
+    }
+    $watch_later = new WatchLater;
+    $watch_later->user_id = auth()->user()->id;
+    $watch_later->video_id = $video_id;
+    if ($watch_later->save()) {
+      return [
+        'success' => true,
+        'message' => 'Video added to watch later!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to add video!'
+    ], 451);
+  }
+  
+  // Remove video from watch later
+  public function removeVideoFromWatchLater($video_id){
+    if (!Video::find($video_id)) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Video not found!'
+      ], 404);
+    }
+    $result = WatchLater::where('user_id', auth()->user()->id)->where('video_id', $video_id)->delete();
+    if($result){
+      return [
+        'success' => true,
+        'message' => 'Video removed from watch later!'
       ];
     }
     return response()->json([

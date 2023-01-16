@@ -46,7 +46,7 @@ Route::group([
 });
 
 //Endpoints for  Serve files from server storage
-Route::get('file/{type}/{id}', [fileApi::class, 'index'])->middleware('signed')->name('file.serve');
+Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware('signed')->name('file.serve');
 
 // Endpoints for logged in users
 Route::group([
@@ -70,6 +70,8 @@ Route::group([
   Route::get('suggestions/{query?}', [videoApi::class, 'suggestions']);
   Route::get('search/{query?}', [videoApi::class, 'search']);
   Route::get('history', [videoApi::class, 'watchHistory']);
+  Route::get('video/liked', [videoApi::class, 'getLikedVideos'])->name('videos.liked');
+  Route::get('video/watch-later', [videoApi::class, 'getWatchLaterVideos'])->name('videos.watchLater');
   Route::post('review/{video_id}', [videoApi::class, 'postReview']);
   Route::get('review/{video_id}', [videoApi::class, 'getReview']);
   Route::post('comment/{video_id}', [videoApi::class, 'postComment']);
@@ -94,11 +96,11 @@ Route::group([
   Route::delete('playlist/saved/{id}', [videoApi::class, 'removeSavedPlaylist']);
   Route::post('playlist/{playlist_id}/{video_id}', [videoApi::class, 'addVideoToPlaylist']);
   Route::delete('playlist/{playlist_id}/{video_id}', [videoApi::class, 'removeVideoFromPlaylist']);
-  
+  Route::post('watch-later/{video_id}', [videoApi::class, 'addVideoToWatchLater']);
+  Route::delete('watch-later/{video_id}', [videoApi::class, 'removeVideoFromWatchLater']);
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 
 Route::get('/test', function(Request $req){
-  // Test user relation ...
-  return App\Models\PlaylistVideo::all();
-})->middleware('auth:sanctum');
+  
+});

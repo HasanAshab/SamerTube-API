@@ -10,7 +10,7 @@ use App\Models\Channel;
 
 class fileApi extends Controller
 {
-    public function index($type, $id){
+    public function index($type, $id=null){
       if($type === "video"){
         $video = Video::find($id);
         if($video === null || $video->visibility === 'private'){
@@ -37,6 +37,12 @@ class fileApi extends Controller
         $logo_path = $channel->logo_path;
         $path = storage_path("app/public/$logo_path");
         return response()->file($path);
+      }
+      else if($type === "liked-videos"){
+        return response()->file(storage_path("app/public/assets/liked_videos.png"));
+      }
+      else if($type === "watch-later"){
+        return response()->file(storage_path("app/public/assets/watch_later.png"));
       }
       return null;
     }

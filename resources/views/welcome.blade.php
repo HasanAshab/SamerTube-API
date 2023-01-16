@@ -13,7 +13,7 @@
     <input type="number" placeholder="uploader_id" name="uploader_id">
     <input type="text" placeholder="title" name="title">
     <input type="text" placeholder="description" name="description">
-    <input type="text" placeholder="category" name="category">
+    <input type="text" placeholder="category id" name="category_id">
     <input type="text" placeholder="visibility" name="visibility">
     <input type="file" name="video" accept=".hh">
     <input type="file" name="thumbnail" accept="image/*">
