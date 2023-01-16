@@ -12,24 +12,6 @@ use Illuminate\Http\Request;
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middleware(['auth:api', 'throttle:6,1'])->name('verification.send');
 
-// Endpoints for Admin services
-Route::group([
-  'prefix' => 'admin',
-  'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
-
-], function ($router) {
-  Route::get('/', [adminApi::class, 'getAdmins']);
-  Route::get('/dashboard', [adminApi::class, 'dashboard']);
-  Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
-  Route::post('category', [adminApi::class, 'addCategory']);
-  Route::get('user', [adminApi::class, 'getUsers']);
-  Route::get('channel', [adminApi::class, 'getChannels']);
-  Route::delete('user/{id}', [adminApi::class, 'removeUser']);
-  Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
-  Route::delete('notification/{id}', [adminApi::class, 'removeNotification']);
-});
-
-
 // Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
@@ -43,6 +25,24 @@ Route::group([
   Route::post('logout-all', [AuthApi::class, 'logoutAllDevices']);
   Route::post('refresh', [AuthApi::class, 'refresh']);
   Route::delete('delete', [AuthApi::class, 'destroy']);
+});
+
+// Endpoints for Admin services
+Route::group([
+  'prefix' => 'admin',
+  'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
+
+], function ($router) {
+  Route::get('/', [adminApi::class, 'getAdmins']);
+  Route::get('/dashboard', [adminApi::class, 'dashboard']);
+  Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
+  Route::post('category', [adminApi::class, 'addCategory']);
+  Route::get('user', [adminApi::class, 'getUsers']);
+  Route::get('channel', [adminApi::class, 'getChannels']);
+  Route::get('report/{type}', [adminApi::class, 'getReports']);
+  Route::delete('user/{id}', [adminApi::class, 'removeUser']);
+  Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
+  Route::delete('notification/{id}', [adminApi::class, 'removeNotification']);
 });
 
 //Endpoints for  Serve files from server storage
@@ -98,6 +98,7 @@ Route::group([
   Route::delete('playlist/{playlist_id}/{video_id}', [videoApi::class, 'removeVideoFromPlaylist']);
   Route::post('watch-later/{video_id}', [videoApi::class, 'addVideoToWatchLater']);
   Route::delete('watch-later/{video_id}', [videoApi::class, 'removeVideoFromWatchLater']);
+  Route::post('report/{id}', [videoApi::class, 'report']);
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 

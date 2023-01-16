@@ -20,6 +20,7 @@ use App\Models\Playlist;
 use App\Models\WatchLater;
 use App\Models\PlaylistVideo;
 use App\Models\SavedPlaylist;
+use App\Models\Report;
 use Carbon\Carbon;
 
 class videoApi extends Controller
@@ -929,6 +930,30 @@ class videoApi extends Controller
       array_push($playlist_videos, $video);
     }
     return $playlist_videos;
+  }
+  
+  // Report any content material
+  protected function report(Request $request, $id){
+    $request->validate([
+      'type' => 'required|in:image_or_title,video,user,comment,reply',
+      'reason' => 'required|string|between:10,100'
+    ]);
+    
+    $report = new Report;
+    $report->user_id = $request->user()->id;
+    $report->type = $request->type;
+    $report->for = $id;
+    $report->reason = $request->reason;
+    if ($report->save()) {
+      return [
+        'success' => true,
+        'message' => 'Thanks for reporting!'
+      ];
+    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Failed to report!'
+    ], 451);
   }
 
   // Save a uploaded file to server storage

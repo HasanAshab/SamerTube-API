@@ -8,6 +8,7 @@ use App\Models\Video;
 use App\Models\Notification;
 use App\Models\Subscriber;
 use App\Models\Category;
+use App\Models\Report;
 use Hash;
 
 class adminApi extends Controller
@@ -40,6 +41,30 @@ class adminApi extends Controller
   // Get all Channels
   public function getChannels(){
     return Channel::all();
+  }
+  
+  // Get all reports
+  public function getReports($type){
+    if($type === "image_or_title"){
+      $reports = Report::where('type', $type)->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for', 'channels.logo_url', 'channels.name', 'reports.reason', 'videos.title', 'videos.thumbnail_url'])->orderByDesc('reports.created_at')->get();
+    }
+    else if($type === "video"){
+      $reports = Report::where('type', $type)->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for', 'channels.logo_url', 'channels.name', 'reports.reason', 'videos.video_url'])->orderByDesc('reports.created_at')->get();
+    }
+    else if($type === "comment"){
+      $reports = Report::where('type', $type)->join('comments', 'comments.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for', 'channels.logo_url', 'channels.name', 'reports.reason', 'comments.text'])->orderByDesc('reports.created_at')->get();
+    }
+    else if($type === "reply"){
+      $reports = Report::where('type', $type)->join('replies', 'replies.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for', 'channels.logo_url', 'channels.name', 'reports.reason', 'replies.text'])->orderByDesc('reports.created_at')->get();
+    }
+    else if($type === "user"){
+      $reports = Report::where('type', $type)->join('channels AS reported', 'reported.id', '=', 'reports.for')->join('channels AS reporter', 'reporter.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for', 'reporter.logo_url AS reporter_logo_url', 'reporter.name AS reporter_name', 'reports.reason', 'reported.logo_url AS reported_logo_url', 'reported.name AS reported_name'])->orderByDesc('reports.created_at')->get();
+    }
+    else{
+      return null;
+    }
+    
+    return $reports;
   }
   
   // Give a user 'admin' role
