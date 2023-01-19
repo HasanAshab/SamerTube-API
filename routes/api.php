@@ -6,7 +6,7 @@ use App\Http\Controllers\AuthApi;
 use App\Http\Controllers\channelApi;
 use App\Http\Controllers\videoApi;
 use App\Http\Controllers\fileApi;
-use Illuminate\Http\Request;
+use App\Http\Controllers\DashboardApi;
 
 // Endpoints to Verify email
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
@@ -63,7 +63,7 @@ Route::group([
   Route::put('video/{id}', [videoApi::class, 'update']);
   Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::delete('video/{id}', [videoApi::class, 'destroy']);
-  Route::post('increase-view/{id}', [videoApi::class, 'increaseView']);
+  Route::post('view/{id}/{time}', [videoApi::class, 'setViewWatchTime']);
   Route::get('notification', [videoApi::class, 'getNotifications']);
   Route::post('notification/hide/{notification_id}', [videoApi::class, 'hideNotification']);
   Route::get('categories', [videoApi::class, 'category']);
@@ -99,9 +99,16 @@ Route::group([
   Route::post('watch-later/{video_id}', [videoApi::class, 'addVideoToWatchLater']);
   Route::delete('watch-later/{video_id}', [videoApi::class, 'removeVideoFromWatchLater']);
   Route::post('report/{id}', [videoApi::class, 'report']);
+  Route::group([
+    'prefix' => 'dashboard'
+  ], function ($router) {
+    Route::get('overview', [DashboardApi::class, 'getOverviewData']);
+    Route::get('channel/audience/country', [DashboardApi::class, 'getChannelAudienceCountry']);
+    Route::get('video/{id}/audience/country', [DashboardApi::class, 'getVideoAudienceCountry']);
+  });
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 
-Route::get('/test', function(Request $req){
-  
+Route::get('/test', function() {
+
 });

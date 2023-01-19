@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use App\Models\Video;
+use App\Models\View;
 use App\Models\Category;
 use App\Models\History;
 use App\Models\Review;
@@ -54,7 +55,7 @@ class videoApi extends Controller
     $video->link = URL::signedRoute('video.watch', ['id' => $video->getNextId()]);
     require_once(storage_path('getID3/getid3/getid3.php'));
     $getID3 = new \getID3;
-    $video->duration = $getID3->analyze($request->file('video'))['playtime_string'];
+    $video->duration = $getID3->analyze($request->file('video'))['playtime_seconds'];
     $video->video_path = $this->upload('videos', $request->file('video'));
     $video->thumbnail_path = $this->upload('thumbnails', $request->file('thumbnail'));
     $video->video_url = URL::signedRoute('file.serve', ['type' => 'video', 'id' => $video->getNextId()]);
@@ -132,15 +133,25 @@ class videoApi extends Controller
     $video->subscribed = Subscriber::where('subscriber_id', $request->user()->id)->where('channel_id', $video->channel_id)->exists();
     return $video;
   }
-
-  // Increase views of a video, when a user watched a video more than 10 percent
-  public function increaseView($id) {
-    $result = Video::find($id)->increment('view_count', 1);
+  
+  // Set watch time of a view
+  public function setViewWatchTime($id, $time){
+    $view = View::where('user_id', auth()->user()->id)->where('video_id', $id)->first();
+    if($view){
+      $view->view_duration += $time;
+      $result = $view->save();
+    }
+    else{
+      $view = new View;
+      $view->user_id = auth()->user()->id;
+      $view->video_id = $id;
+      $view->view_duration = $time;
+      $result = $view->save() && Video::find($id)->increment('view_count', 1);
+    }
     return $result
-    ?['success' => true]
-    :response()->json(['success' => false], 451);
+      ?['success' => true]
+      :response()->json(['success' => false], 451);
   }
-
   // Delete own video
   public function destroy($id) {
     $video = Video::find($id);

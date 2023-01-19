@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('logo_path')->nullable();
             $table->string('logo_url');
             $table->string('description', 500)->default('');
+            $table->decimal('total_watch_time')->default(0);
             $table->integer('total_views')->default(0);
             $table->integer('total_videos')->default(0);
             $table->integer('total_likes')->default(0);

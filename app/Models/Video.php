@@ -27,7 +27,9 @@ class Video extends Model
   protected $hidden = [
     'video_path',
     'thumbnail_path',
-    'updated_at'
+    'updated_at',
+    'watch_time',
+    'average_view_duration'
   ];
   
   public function getNextId() {
@@ -61,9 +63,9 @@ class Video extends Model
     return $query->with(['channel' => fn($query2) => $query2->select(array_merge(['id'], $columns))]);
   }
 
-  protected function title(): Attribute {
+  protected function duration(): Attribute {
     return new Attribute(
-      get: fn($value) => ucfirst($value),
+      get: fn($value) => $value<3600?gmdate("i:s", $value):gmdate("H:i:s", $value),
     );
   }
   protected function createdAt(): Attribute {

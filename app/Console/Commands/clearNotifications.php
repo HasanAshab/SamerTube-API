@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-
+use App\Models\Notification;
+use Carbon\Carbon;
 
 class clearNotifications extends Command
 {
@@ -29,7 +29,7 @@ class clearNotifications extends Command
      */
     public function handle()
     {
-        DB::table('notifications')->delete();
+        Notification::whereMonth('created_at', Carbon::now()->subMonth()->month)->delete();
         return Command::SUCCESS;
     }
 }

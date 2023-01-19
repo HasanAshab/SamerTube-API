@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('channel_id')->constrained()->onDelete('cascade');
             $table->string('title', 72);
             $table->string('description', 300);
-            $table->string('duration');
+            $table->integer('duration');
             $table->string('video_path');
             $table->string('video_url');
             $table->string('thumbnail_path');
@@ -26,6 +26,8 @@ return new class extends Migration
             $table->string('link');
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->string('visibility');
+            $table->float('average_view_duration')->nullable();
+            $table->decimal('watch_time')->default(0);
             $table->integer('view_count')->default(0);
             $table->integer('like_count')->default(0);
             $table->integer('dislike_count')->default(0);

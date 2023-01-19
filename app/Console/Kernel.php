@@ -5,6 +5,7 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\clearNotifications;
+use App\Console\Commands\UpdateAnalytics;
 class Kernel extends ConsoleKernel
 {
     /**
@@ -17,6 +18,7 @@ class Kernel extends ConsoleKernel
     {
        //$schedule->command('inspire')->hourly();
         $schedule->command(clearNotifications::class)->everyMinute();
+        $schedule->command(UpdateAnalytics::class)->daily();
     }
 
     /**
@@ -27,7 +29,8 @@ class Kernel extends ConsoleKernel
      protected $commands = [
       Commands\clearUploads::class,
       Commands\clearNotifications::class,
-      Commands\CreateAdmin::class
+      Commands\CreateAdmin::class,
+      Commands\UpdateAnalytics::class
     ];
      
     protected function commands()

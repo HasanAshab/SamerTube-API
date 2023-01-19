@@ -32,6 +32,9 @@ class Channel extends Model
   public function replies() {
     return $this->hasManyThrough(Reply::class, Comment::class, 'commenter_id');
   }
+  public function views() {
+    return $this->hasManyThrough(View::class, Video::class);
+  }
   protected function createdAt(): Attribute {
     return new Attribute(
       get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->format('jS M, Y'),
