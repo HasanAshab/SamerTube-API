@@ -13,21 +13,21 @@ class DashboardApi extends Controller
 {
   // Get Analytics for Overview tab
   public function getOverviewData() {
+    $date = Carbon::now()->subDays(28);
     $id = auth()->user()->id;
     $videos_id = Video::where('channel_id', $id)->where('visibility', 'public')->pluck('id');
-
-    $views = View::whereIn('video_id', $videos_id)->whereMonth('created_at', date('m'));
+    $views = View::whereIn('video_id', $videos_id)->whereDate('created_at', '>=', $date);
     $views_total = $views->count();
     $watch_time_total = $views->sum('view_duration');
     $views_and_watch_time_analytics = $views->select(DB::raw('DATE_FORMAT(DATE(created_at), "%d-%b-%Y") as date'), DB::raw('count(*) AS view'), DB::raw('sum(view_duration) AS watch_time'))->groupBy('date')->get();
 
-    $subscribers = Subscriber::where('channel_id', $id)->whereMonth('created_at', date('m'));
+    $subscribers = Subscriber::where('channel_id', $id)->whereDate('created_at', '>=', $date);
     $subscribers_total = $subscribers->count();
     $subscribers_analytics = $subscribers->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) AS subscribe'))->groupBy('date')->get();
     
     $top_contents = View::with(['video' => function($query){
       $query->select('id', 'thumbnail_url', 'title', 'average_view_duration', 'view_count');
-    }])->whereIn('video_id', $videos_id)->whereMonth('created_at', date('m'))->select('video_id', DB::raw('count(*) AS views'))->groupBy('video_id')->orderByDesc('views')->limit(10)->get();
+    }])->whereIn('video_id', $videos_id)->whereDate('created_at', '>=', $date)->select('video_id', DB::raw('count(*) AS views'))->groupBy('video_id')->orderByDesc('views')->limit(10)->get();
   
   foreach ($top_contents as $top_content){
     $top_content->video->makeVisible('average_view_duration');

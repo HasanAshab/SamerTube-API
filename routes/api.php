@@ -21,6 +21,9 @@ Route::group([
   Route::post('login', [AuthApi::class, 'login'])->withoutMiddleware(['auth:sanctum']);
   Route::get('google', [AuthApi::class, 'googleRedirect'])->withoutMiddleware(['auth:sanctum']);
   Route::get('google/callback', [AuthApi::class, 'loginWithGoogle'])->withoutMiddleware(['auth:sanctum']);
+  Route::post('change-password', [AuthApi::class, 'changePassword']);
+  Route::post('forgot-password', [AuthApi::class, 'sentForgotPasswordLink'])->withoutMiddleware(['auth:sanctum']);
+  Route::post('reset-password', [AuthApi::class, 'resetPassword'])->withoutMiddleware(['auth:sanctum']);
   Route::post('logout', [AuthApi::class, 'logout']);
   Route::post('logout-all', [AuthApi::class, 'logoutAllDevices']);
   Route::post('refresh', [AuthApi::class, 'refresh']);
