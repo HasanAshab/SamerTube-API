@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('subscriber_id');
             $table->foreign('subscriber_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreignId('channel_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('video_id')->nullable();
             $table->timestamps();
         });
     }

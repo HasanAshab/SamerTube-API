@@ -73,7 +73,7 @@ class channelApi extends Controller
   }
 
   // Subscribe or Unsubscribe a channel
-  public function handleSubscribe(Request $request, $channel_id) {
+  public function handleSubscribe(Request $request, $channel_id, $video_id=null) {
     $channel = Channel::find($channel_id);
     $user_id = $request->user()->id;
     if ($channel_id == $user_id) {
@@ -86,7 +86,7 @@ class channelApi extends Controller
     if (count($old_subscribe->get()) !== 0) {
       $result = $old_subscribe->delete();
       if ($result) {
-        Channel::find($channel_id)->decrement('total_subscribers', 1);
+        $channel->decrement('total_subscribers', 1);
         return ['success' => true,
           'message' => 'Unsubscribed'];
       }
@@ -95,6 +95,7 @@ class channelApi extends Controller
     $subscriber = new Subscriber;
     $subscriber->subscriber_id = $user_id;
     $subscriber->channel_id = $channel_id;
+    $subscriber->video_id = $video_id;
     $result = $subscriber->save();
     if ($result) {
       $channel->increment('total_subscribers', 1);

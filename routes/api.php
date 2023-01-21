@@ -59,7 +59,7 @@ Route::group([
   Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
   Route::put('channel', [channelApi::class, 'update']);
   Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
-  Route::post('subscribe/{channel_id}', [channelApi::class, 'handleSubscribe']);
+  Route::post('subscribe/{channel_id}/{video_id?}', [channelApi::class, 'handleSubscribe']);
   Route::get('subscriptions', [channelApi::class, 'subscriptions']);
   //Route::post('video/upload', [videoApi::class, 'store']);
   Route::get('explore', [videoApi::class, 'explore']);
@@ -105,9 +105,13 @@ Route::group([
   Route::group([
     'prefix' => 'dashboard'
   ], function ($router) {
-    Route::get('overview', [DashboardApi::class, 'getOverviewData']);
-    Route::get('channel/audience/country', [DashboardApi::class, 'getChannelAudienceCountry']);
-    Route::get('video/{id}/audience/country', [DashboardApi::class, 'getVideoAudienceCountry']);
+    Route::get('overview', [DashboardApi::class, 'getChannelOverview']);
+    Route::get('audience', [DashboardApi::class, 'getChannelAudience']);
+    Route::get('video/{video_id}/overview', [DashboardApi::class, 'getVideoOverview']);
+    Route::get('video/{video_id}/engagement', [DashboardApi::class, 'getVideoEngagement']);
+    Route::get('video/{video_id}/perfomance', [DashboardApi::class, 'getVideoPerfomance']);
+    Route::get('video/{video_id}/audience', [DashboardApi::class, 'getVideoAudience']);
+    Route::get('videos/previous/rankedby/views', [DashboardApi::class, 'getPreviousRankedVideos']);
   });
 });
 Route::post('video/upload', [videoApi::class, 'store']);
