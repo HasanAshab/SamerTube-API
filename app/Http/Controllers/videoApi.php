@@ -22,6 +22,7 @@ use App\Models\WatchLater;
 use App\Models\PlaylistVideo;
 use App\Models\SavedPlaylist;
 use App\Models\Report;
+use DB;
 use Carbon\Carbon;
 
 class videoApi extends Controller
@@ -232,14 +233,12 @@ class videoApi extends Controller
   //Get watch history
   public function watchHistory(Request $request) {
     $id = $request->user()->id;
-    $dates = History::where('user_id', $id)->where('type', 'video')->distinct('date')->cursorPaginate($this->maxDataPerRequest, ['date']);
-    $histories = array('data' => array());
-    foreach ($dates->all() as $date) {
-      $videos = History::where('user_id', $id)->where('type', 'video')->where('date', $date->date)->orderBy('histories.created_at', 'desc')->join('videos', 'videos.id', '=', 'histories.history')->get();
-      array_push($histories['data'], ['date' => Carbon::parse($date->date)->format('jS M, Y'), 'videos' => $videos]);
+    $dates = History::where('user_id', $id)->where('type', 'video')->select(DB::raw('DATE(created_at) as date'))->distinct('date')->latest()->pluck('date');
+    $histories = collect();
+    foreach ($dates as $date){
+      $videos = History::whereDate('histories.created_at', $date)->where('type', 'video')->where('user_id', $id)->join('videos', 'videos.id', '=', 'histories.history')->join('channels', 'channels.id', 'videos.channel_id')->select('history', 'channels.name', 'videos.title', DB::raw('TIME_FORMAT(SEC_TO_TIME(videos.duration), "%i:%s") AS duration'), 'videos.thumbnail_url')->get();
+      $histories->push(['date' => $this->parse_date($date), 'videos' => $videos]);
     }
-    $histories['next_page_url'] = $dates['next_page_url'];
-    $histories['prev_page_url'] = $dates['prev_page_url'];
     return $histories;
   }
   
@@ -978,5 +977,15 @@ class videoApi extends Controller
   protected function clear($path) {
     return unlink(storage_path("app/public/$path"));
   }
-
+  
+  protected function parse_date($date) {
+    $carbonDate = Carbon::parse($date);
+    if($carbonDate->isToday()) return "Today";
+    if($carbonDate->isYesterday()) return "Yesterday";
+    if($carbonDate->week == Carbon::now()->week) {
+        return $carbonDate->format('l');
+    }
+    
+    return $carbonDate->format('j M Y');
+}
 }

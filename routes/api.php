@@ -36,16 +36,21 @@ Route::group([
   'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
 
 ], function ($router) {
-  Route::get('/', [adminApi::class, 'getAdmins']);
-  Route::get('/dashboard', [adminApi::class, 'dashboard']);
   Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
   Route::post('category', [adminApi::class, 'addCategory']);
-  Route::get('user', [adminApi::class, 'getUsers']);
-  Route::get('channel', [adminApi::class, 'getChannels']);
-  Route::get('report/{type}', [adminApi::class, 'getReports']);
   Route::delete('user/{id}', [adminApi::class, 'removeUser']);
   Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
   Route::delete('notification/{id}', [adminApi::class, 'removeNotification']);
+  Route::group([
+    'prefix' => 'dashboard'
+  ], function ($router) {
+    Route::get('/', [adminApi::class, 'dashboard']);
+    Route::get('users', [adminApi::class, 'getUsers']);
+    Route::get('users/active', [adminApi::class, 'getActiveUsers']);
+    Route::get('channels', [adminApi::class, 'getChannels']);
+    Route::get('reports/{type}', [adminApi::class, 'getReports']);
+    Route::get('admins', [adminApi::class, 'getAdmins']);
+  });
 });
 
 //Endpoints for  Serve files from server storage
@@ -116,6 +121,4 @@ Route::group([
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 
-Route::get('/test', function() {
-
-});
+Route::get('/test', function() {});

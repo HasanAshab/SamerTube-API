@@ -22,7 +22,7 @@ class DashboardApi extends Controller
     $views = View::whereIn('video_id', $videos_id)->whereDate('created_at', '>=', $date);
     $views_total = $views->count();
     $watch_time_total = $views->sum('view_duration');
-    $views_and_watch_time_analytics = $views->select(DB::raw('DATE_FORMAT(DATE(created_at), "%d-%b-%Y") as date'), DB::raw('count(*) AS view'), DB::raw('sum(view_duration) AS watch_time'))->groupBy('date')->get();
+    $views_and_watch_time_analytics = $views->select(DB::raw('DATE_FORMAT(DATE(created_at), "%d %b %Y") as date'), DB::raw('count(*) AS view'), DB::raw('sum(view_duration) AS watch_time'))->groupBy('date')->get();
 
     $subscribers = Subscriber::where('channel_id', $id)->whereDate('created_at', '>=', $date);
     $subscribers_total = $subscribers->count();

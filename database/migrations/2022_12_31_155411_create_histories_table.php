@@ -17,10 +17,9 @@ return new class extends Migration
         Schema::create('histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('type');
+            $table->string('type', 8);
             $table->string('history');
-            $table->date('date')->default(Carbon::now()->format('y-m-d'));
-            $table->timestamp('created_at');
+            $table->timestamps();
         });
     }
 
