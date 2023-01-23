@@ -10,6 +10,8 @@ use App\Models\Subscriber;
 use App\Models\Category;
 use App\Models\Report;
 use Laravel\Sanctum\PersonalAccessToken;
+use App\Notifications\CustomNotification;
+use Illuminate\Support\Facades\Notification as Mail;
 use Hash;
 use DB;
 
@@ -22,6 +24,7 @@ class adminApi extends Controller
     $users_analyticts = $users->select(DB::raw('DATE_FORMAT(DATE(created_at), "%d %b %Y") as date'), DB::raw('count(*) AS users'))->groupBy('date')->get();
     $tokens = PersonalAccessToken::where('last_used_at', '>=', now()->subMinute(2))->distinct('tokenable_id');
     $active_users_count = $tokens->count();
+    $new_users_count = User::where('is_admin', 0)->whereDate('created_at', '>=', now()->subDays(2))->count();
     $total_admins = User::where('is_admin', 1)->count();
     $total_videos = Video::query()->count();
     $total_categories = Category::query()->count();
@@ -30,6 +33,7 @@ class adminApi extends Controller
       'users_data' => [
         'total' => $total_users,
         'active_users' => $active_users_count,
+        'new_users' => $new_users_count,
         'analytics' => $users_analyticts
       ],
       'total_admins' => $total_admins,
@@ -51,6 +55,11 @@ class adminApi extends Controller
       $active_users->push($token->tokenable);
     }
     return $active_users;
+  }
+
+  // Get all new users
+  public function getNewUsers() {
+    return User::where('is_admin', 0)->whereDate('created_at', '>=', now()->subDays(2))->get();
   }
 
   // Get all admins
@@ -107,6 +116,21 @@ class adminApi extends Controller
     return response()->json(['success' => false, 'message' => 'failed to add category!'], 451);
   }
 
+  // Make a new event on SamerTube
+  public function sentNotification(Request $request) {
+    $request->validate([
+      'subject' => 'required',
+      'description' => 'required',
+      'greeting',
+      'action_label',
+      'action_url',
+      'footer'
+    ]);
+    $users = User::where('is_admin', 0)->get();
+    $result = Mail::send($users, new CustomNotification($request->all()));
+    return ['success' => true, 'message' => 'Notification sent to all users!'];
+  }
+
   // Delete category
   public function removeCategory($id) {
     if (Category::findOrFail($id)->delete()) {
@@ -123,10 +147,7 @@ class adminApi extends Controller
       return accessDenied();
     }
     $result = $user->delete();
-    $r2 = $user->videos->delete();
     $r3 = $user->channel->delete();
-    $r5 = Subscriber::where('channel_id', $id)->delete();
-    $r6 = Notification::where('from', $id)->delete();
     if ($result) {
       return ['success' => true,
         'message' => 'Account successfully deleted!'];

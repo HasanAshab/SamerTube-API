@@ -8,6 +8,11 @@ use App\Http\Controllers\videoApi;
 use App\Http\Controllers\fileApi;
 use App\Http\Controllers\DashboardApi;
 
+//temp
+use App\Notifications\CustomNotification;
+use Illuminate\Support\Facades\Notification;
+use App\Models\User;
+
 // Endpoints to Verify email
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middleware(['auth:api', 'throttle:6,1'])->name('verification.send');
@@ -37,6 +42,7 @@ Route::group([
 
 ], function ($router) {
   Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
+  Route::post('notify', [adminApi::class, 'sentNotification']);
   Route::post('category', [adminApi::class, 'addCategory']);
   Route::delete('user/{id}', [adminApi::class, 'removeUser']);
   Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
@@ -47,6 +53,7 @@ Route::group([
     Route::get('/', [adminApi::class, 'dashboard']);
     Route::get('users', [adminApi::class, 'getUsers']);
     Route::get('users/active', [adminApi::class, 'getActiveUsers']);
+    Route::get('users/new', [adminApi::class, 'getNewUsers']);
     Route::get('channels', [adminApi::class, 'getChannels']);
     Route::get('reports/{type}', [adminApi::class, 'getReports']);
     Route::get('admins', [adminApi::class, 'getAdmins']);
@@ -121,4 +128,18 @@ Route::group([
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 
-Route::get('/test', function() {});
+Route::get('/test', function() {
+  $admins = User::where('is_admin', 1)->get();
+  $data = [
+    'subject' => 'New Event!',
+    'greeting' => 'Hello user,',
+    'description' => 'bla bla bla bla bla bla',
+    'action' => [
+      'label' => 'Join event',
+      'url' => url('/')
+    ],
+    'footer' => 'Thanks for using our application'
+  ];
+  Notification::send($admins, new CustomNotification($data));
+  return "send!";
+});

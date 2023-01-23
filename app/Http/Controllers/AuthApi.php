@@ -14,6 +14,9 @@ use Illuminate\Support\Str;
 use Illuminate\Auth\Events\PasswordReset;
 use Hash;
 use Socialite;
+use App\Notifications\NewUserJoined;
+use Illuminate\Support\Facades\Notification;
+
 
 class AuthApi extends Controller
 {
@@ -36,7 +39,9 @@ class AuthApi extends Controller
       'country' => 'Bangladesh'//Location::get($request->ip())->countryName);
     ]);
     if ($user && $channel) {
+      $admins = User::where('is_admin', 1)->get();
       event(new Registered($user));
+      Notification::send($admins, new NewUserJoined($user));
       return ['success' => true,
         'message' => 'Your account is successfully created!'];
     }
@@ -90,8 +95,9 @@ class AuthApi extends Controller
       ]);
       $createUser->markEmailAsVerified();
       $createChannel = $this->createChannel($user->name, $user->avatar, 'Bangladesh'); //Location::get($request->ip())->countryName);
-
       if ($createUser and $createChannel) {
+        $admins = User::where('is_admin', 1)->get();
+        Notification::send($admins, new NewUserJoined($createUser));
         return [
           'success' => true,
           'access_token' => $createUser->createToken("API TOKEN", ['user'])->plainTextToken
@@ -194,12 +200,8 @@ class AuthApi extends Controller
   public function destroy(Request $request) {
     $id = $request->user()->id;
     $result = User::find($id)->delete();
-    $r2 = Video::where('uploader_id', $id)->delete();
     $channel = Channel::find($id);
     $channel->delete();
-    $r4 = Comment::where('user_id', $id)->delete();
-    $r5 = Subscriber::where('channel_id', $id)->delete();
-    $r6 = Notification::where('from', $id)->delete();
     if ($result) {
       unlink(storage_path("app/public/".$channel->logo));
       return ['success' => true,
