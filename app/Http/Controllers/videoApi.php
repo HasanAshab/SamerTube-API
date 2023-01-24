@@ -49,7 +49,7 @@ class videoApi extends Controller
       'thumbnail' => 'bail|required|image'
     ]);
     $video = new Video;
-    $video->channel_id = $request->uploader_id; //user()->id;
+    $video->channel_id = $request->user()->id;
     $video->title = $request->title;
     $video->description = $request->description;
     $video->category_id = $request->category_id;

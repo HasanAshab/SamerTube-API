@@ -15,7 +15,7 @@ Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middlewa
 // Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
-  'middleware' => ['api', 'auth:sanctum']
+  'middleware' => ['api', 'auth:sanctum', 'throttle:4,1']
 ], function ($router) {
   Route::post('register', [AuthApi::class, 'register'])->withoutMiddleware(['auth:sanctum']);
   Route::post('login', [AuthApi::class, 'login'])->withoutMiddleware(['auth:sanctum']);
@@ -58,11 +58,11 @@ Route::group([
 });
 
 //Endpoints for  Serve files from server storage
-Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware('signed')->name('file.serve');
+Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
 
 // Endpoints for logged in users
 Route::group([
-  'middleware' => ['api', 'auth:sanctum', 'verified']
+  'middleware' => ['api', 'auth:sanctum', 'verified', 'throttle:20,1']
 ], function ($router) {
   Route::get('channel', [channelApi::class, 'index']);
   Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
@@ -124,6 +124,5 @@ Route::group([
     Route::get('videos/previous/rankedby/views', [DashboardApi::class, 'getPreviousRankedVideos']);
   });
 });
-Route::post('video/upload', [videoApi::class, 'store']);
 
 Route::get('/test', function() {});
