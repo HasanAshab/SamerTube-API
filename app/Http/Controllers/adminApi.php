@@ -28,6 +28,7 @@ class adminApi extends Controller
     $total_admins = User::where('is_admin', 1)->count();
     $total_videos = Video::query()->count();
     $total_categories = Category::query()->count();
+    $total_reports = Report::query()->count();
     return [
       'success' => true,
       'users_data' => [
@@ -39,6 +40,7 @@ class adminApi extends Controller
       'total_admins' => $total_admins,
       'total_videos' => $total_videos,
       'total_categories' => $total_categories,
+      'total_reports' => $total_reports
     ];
   }
 
@@ -75,22 +77,51 @@ class adminApi extends Controller
   // Get all reports
   public function getReports($type) {
     if ($type === "image_or_title") {
-      $reports = Report::where('type', $type)->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS video_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'videos.title AS reported_title', 'videos.thumbnail_url AS reported_thumnail_url'])->orderByDesc('reports.created_at')->get();
+      return Report::where('type', $type)->orderByDesc('reports.created_at')->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS video_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'videos.title AS reported_title', 'videos.thumbnail_url AS reported_thumnail_url', 'videos.link'])->orderByDesc('reports.created_at')->get();
     } else if ($type === "video") {
-      $reports = Report::where('type', $type)->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS video_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'videos.video_url AS reported_video_url'])->orderByDesc('reports.created_at')->get();
+      return Report::where('type', $type)->orderByDesc('reports.created_at')->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS video_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'videos.video_url AS reported_video_url', 'videos.link'])->orderByDesc('reports.created_at')->get();
     } else if ($type === "comment") {
-      $reports = Report::where('type', $type)->join('comments', 'comments.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS comment_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'comments.text AS reported_text'])->orderByDesc('reports.created_at')->get();
+      return Report::where('type', $type)->orderByDesc('reports.created_at')->join('comments', 'comments.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS comment_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'comments.text AS reported_text'])->orderByDesc('reports.created_at')->get();
     } else if ($type === "reply") {
-      $reports = Report::where('type', $type)->join('replies', 'replies.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS reply_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'replies.text AS reported_text'])->orderByDesc('reports.created_at')->get();
+      return Report::where('type', $type)->orderByDesc('reports.created_at')->join('replies', 'replies.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS reply_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'replies.text AS reported_text'])->orderByDesc('reports.created_at')->get();
     } else if ($type === "user") {
-      $reports = Report::where('type', $type)->join('channels AS reported', 'reported.id', '=', 'reports.for')->join('channels AS reporter', 'reporter.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS user_id', 'reporter.logo_url AS reporter_logo_url', 'reporter.name AS reporter_name', 'reports.reason', 'reported.logo_url AS reported_logo_url', 'reported.name AS reported_name'])->orderByDesc('reports.created_at')->get();
-    } else {
-      return null;
+      return Report::where('type', $type)->orderByDesc('reports.created_at')->join('channels AS reported', 'reported.id', '=', 'reports.for')->join('channels AS reporter', 'reporter.id', '=', 'reports.user_id')->select(['reports.id', 'reporter.logo_url AS reporter_logo_url', 'reporter.name AS reporter_name', 'reports.reason', 'reported.logo_url AS reported_logo_url', 'reported.name AS reported_name', 'reported.id AS reported_id'])->orderByDesc('reports.created_at')->get();
     }
-
-    return $reports;
+    return ['success' => false, 'message' => 'Invalid type selected'];
   }
-
+  
+  // Get all reports of a specific content
+  public function getContentReports($type, $id) {
+    if ($type === "image_or_title") {
+      return Report::where('type', $type)->where('for', $id)->orderByDesc('reports.created_at')->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS video_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'videos.title AS reported_title', 'videos.thumbnail_url AS reported_thumnail_url', 'videos.link'])->orderByDesc('reports.created_at')->get();
+    } else if ($type === "video") {
+      return Report::where('type', $type)->where('for', $id)->orderByDesc('reports.created_at')->join('videos', 'videos.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS video_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'videos.video_url AS reported_video_url', 'videos.link'])->orderByDesc('reports.created_at')->get();
+    } else if ($type === "comment") {
+      return Report::where('type', $type)->where('for', $id)->orderByDesc('reports.created_at')->join('comments', 'comments.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS comment_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'comments.text AS reported_text'])->orderByDesc('reports.created_at')->get();
+    } else if ($type === "reply") {
+      return Report::where('type', $type)->where('for', $id)->orderByDesc('reports.created_at')->join('replies', 'replies.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'reports.user_id')->select(['reports.id', 'reports.for AS reply_id', 'channels.logo_url AS reporter_logo_url', 'channels.name AS reporter_name', 'reports.reason', 'replies.text AS reported_text'])->orderByDesc('reports.created_at')->get();
+    } else if ($type === "user") {
+      return Report::where('type', $type)->where('for', $id)->orderByDesc('reports.created_at')->join('channels AS reported', 'reported.id', '=', 'reports.for')->join('channels AS reporter', 'reporter.id', '=', 'reports.user_id')->select(['reports.id', 'reporter.logo_url AS reporter_logo_url', 'reporter.name AS reporter_name', 'reports.reason', 'reported.logo_url AS reported_logo_url', 'reported.name AS reported_name', 'reported.id AS reported_id'])->orderByDesc('reports.created_at')->get();
+    }
+    return ['success' => false, 'message' => 'Invalid type selected'];
+  }
+  
+  // Get top reported content
+  public function getTopReportedContent($type, $limit){
+    if($type === 'video'){
+      return Report::whereIn('type', ['video', 'image_or_title'])->join('videos', 'videos.id', '=', 'reports.for')->select('reports.for AS video_id', 'videos.title', 'videos.link', 'videos.thumbnail_url', 'videos.video_url', 'reports.type', DB::raw('count(*) AS reports'))->groupBy('video_id', 'videos.title', 'videos.link', 'videos.thumbnail_url', 'videos.video_url', 'reports.type')->orderByDesc('reports')->limit($limit)->get();
+    }
+    else if($type === 'comment'){
+      return Report::where('type', 'comment')->join('comments', 'comments.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'comments.commenter_id')->select('reports.for AS comment_id', 'channels.name', 'channels.logo_url', 'comments.text', DB::raw('count(*) AS reports'))->groupBy('comment_id', 'channels.name', 'channels.logo_url', 'comments.text')->orderByDesc('reports')->limit($limit)->get();
+    }
+    else if($type === 'reply'){
+      return Report::where('type', 'reply')->join('replies', 'replies.id', '=', 'reports.for')->join('channels', 'channels.id', '=', 'replies.replier_id')->select('reports.for AS reply_id', 'channels.name', 'channels.logo_url', 'replies.text', DB::raw('count(*) AS reports'))->groupBy('reply_id', 'channels.name', 'channels.logo_url', 'replies.text')->orderByDesc('reports')->limit($limit)->get();
+    }
+    else if($type === 'user'){
+      return Report::where('type', 'user')->join('channels', 'channels.id', '=', 'reports.for')->select('reports.for AS user_id', 'channels.name', 'channels.logo_url', DB::raw('count(*) AS reports'))->groupBy('reports.for', 'channels.name', 'channels.logo_url')->orderByDesc('reports')->limit($limit)->get();
+    }
+    return ['success' => false, 'message' => 'Invalid type selected'];
+  }
   // Give a user 'admin' role
   public function makeAdmin($id) {
     $user = User::find($id);

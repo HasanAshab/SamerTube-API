@@ -29,7 +29,8 @@ class Video extends Model
     'thumbnail_path',
     'updated_at',
     'watch_time',
-    'average_view_duration'
+    'average_view_duration',
+    'tags'
   ];
   
   public function getNextId() {
@@ -46,10 +47,18 @@ class Video extends Model
   }
 
   public function scopeRank($query, $sort = 'relevance', $date_range = 'anytime') {
-    $query = ($sort === 'relevance')??$query->orderByDesc('view_count')->orderByDesc('comment_count')->orderByDesc('like_count')->orderByDesc('created_at')->orderByDesc('duration');
-    $query = ($sort === 'view')??$query->orderByDesc('view_count');
-    $query = ($sort === 'date')??$query->latest('created_at');
-    $query = ($sort === 'rate')??$query->orderByDesc('like_count');
+    if($sort === 'relevance'){
+      $query = $query->orderByDesc('average_view_duration')->orderByDesc('watch_time')->orderByDesc('view_count')->orderByDesc('comment_count')->orderByDesc('like_count')->orderByDesc('created_at')->orderByDesc('duration');
+    }
+    else if($sort === 'view'){
+      $query = $query->orderByDesc('view_count');
+    }
+    else if($sort === 'date'){
+      $query = $query->latest('created_at');
+    }
+    else if($sort === 'rate'){
+      $query = $query->orderByDesc('like_count');
+    }
     $date_range === 'anytime' && $query;
     $date_range === 'hour' && $query->whereBetween('created_at', [Carbon::now()->subHours(1), Carbon::now()]);
     $date_range === 'day' && $query->where('created_at', 'like', Carbon::today()->toDateString().'%');
@@ -63,6 +72,11 @@ class Video extends Model
     return $query->with(['channel' => fn($query2) => $query2->select(array_merge(['id'], $columns))]);
   }
 
+  protected function tags(): Attribute {
+    return new Attribute(
+      get: fn($value) => explode(',', $value),
+    );
+  }
   protected function duration(): Attribute {
     return new Attribute(
       get: fn($value) => $value<3600?gmdate("i:s", $value):gmdate("H:i:s", $value),

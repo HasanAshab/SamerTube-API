@@ -8,11 +8,6 @@ use App\Http\Controllers\videoApi;
 use App\Http\Controllers\fileApi;
 use App\Http\Controllers\DashboardApi;
 
-//temp
-use App\Notifications\CustomNotification;
-use Illuminate\Support\Facades\Notification;
-use App\Models\User;
-
 // Endpoints to Verify email
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middleware(['auth:api', 'throttle:6,1'])->name('verification.send');
@@ -56,6 +51,8 @@ Route::group([
     Route::get('users/new', [adminApi::class, 'getNewUsers']);
     Route::get('channels', [adminApi::class, 'getChannels']);
     Route::get('reports/{type}', [adminApi::class, 'getReports']);
+    Route::get('reports/{type}/{id}', [adminApi::class, 'getContentReports']);
+    Route::get('reports/{type}/top/{limit}', [adminApi::class, 'getTopReportedContent']);
     Route::get('admins', [adminApi::class, 'getAdmins']);
   });
 });
@@ -71,7 +68,8 @@ Route::group([
   Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
   Route::put('channel', [channelApi::class, 'update']);
   Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
-  Route::post('subscribe/{channel_id}/{video_id?}', [channelApi::class, 'handleSubscribe']);
+  Route::post('subscribe/{channel_id}/{video_id?}', [channelApi::class, 'subscribe']);
+  Route::post('unsubscribe/{channel_id}/{video_id?}', [channelApi::class, 'unsubscribe']);
   Route::get('subscriptions', [channelApi::class, 'subscriptions']);
   //Route::post('video/upload', [videoApi::class, 'store']);
   Route::get('explore', [videoApi::class, 'explore']);
@@ -128,18 +126,4 @@ Route::group([
 });
 Route::post('video/upload', [videoApi::class, 'store']);
 
-Route::get('/test', function() {
-  $admins = User::where('is_admin', 1)->get();
-  $data = [
-    'subject' => 'New Event!',
-    'greeting' => 'Hello user,',
-    'description' => 'bla bla bla bla bla bla',
-    'action' => [
-      'label' => 'Join event',
-      'url' => url('/')
-    ],
-    'footer' => 'Thanks for using our application'
-  ];
-  Notification::send($admins, new CustomNotification($data));
-  return "send!";
-});
+Route::get('/test', function() {});

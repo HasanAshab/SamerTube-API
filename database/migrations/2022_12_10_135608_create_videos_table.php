@@ -27,6 +27,7 @@ return new class extends Migration
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->string('visibility');
             $table->float('average_view_duration')->nullable();
+            $table->text('tags')->nullable();
             $table->decimal('watch_time')->default(0);
             $table->integer('view_count')->default(0);
             $table->integer('like_count')->default(0);

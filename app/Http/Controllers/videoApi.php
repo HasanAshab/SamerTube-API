@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use App\Rules\CSVRule;
 use App\Models\Video;
 use App\Models\View;
 use App\Models\Category;
@@ -31,10 +32,10 @@ class videoApi extends Controller
   protected $maxDataPerRequest = 20;
 
   //Get all public videos
-  public function explore(Request $request) {
-    return ($request->user()->is_admin)
-    ?Video::where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest)
-    :Video::query()->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
+  public function explore() {
+    return (auth()->user()->is_admin)
+      ?Video::rank()->channel(['name', 'logo_url'])->cursorPaginate($this->maxDataPerRequest)
+      :Video::rank()->where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
   }
 
   // Save a new video
@@ -88,6 +89,7 @@ class videoApi extends Controller
       'description' => 'bail|required|string|max:300',
       'visibility' => 'bail|required|in:public,private',
       'category_id' => 'bail|required|between:1,9',
+      'tags' => ['bail', new CSVRule(), 'between:2,400'],
       'thumbnail' => 'image'
     ]);
     $video = Video::find($id);
@@ -98,6 +100,7 @@ class videoApi extends Controller
     $video->description = $request->description;
     $video->visibility = $request->visibility;
     $video->category_id = $request->category_id;
+    $video->tags = $request->tags;
     if ($request->file('thumbnail') !== null) {
       $this->clear($video->thumbnail_path);
       $video->thumbnail_path = $this->upload('thumbnails', $request->file('thumbnail'));

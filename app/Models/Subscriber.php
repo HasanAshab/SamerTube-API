@@ -4,10 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\SoftDeletes;
+ 
 class Subscriber extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+    protected $fillable = [
+      'subscriber_id',
+      'channel_id',
+      'video_id'
+    ];
     function channel(){
     return $this->hasOne(Channel::class, 'id', 'channel_id');
   }

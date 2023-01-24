@@ -19,7 +19,9 @@ return new class extends Migration
             $table->foreign('subscriber_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreignId('channel_id')->constrained()->onDelete('cascade');
             $table->unsignedBigInteger('video_id')->nullable();
+            $table->integer('status')->default(1);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

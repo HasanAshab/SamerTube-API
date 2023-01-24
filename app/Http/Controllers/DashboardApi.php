@@ -29,11 +29,12 @@ class DashboardApi extends Controller
     $subscribers_analytics = $subscribers->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) AS subscribe'))->groupBy('date')->get();
 
     $top_contents = View::with(['video' => function($query) {
-      $query->select('id', 'thumbnail_url', 'title', 'average_view_duration', 'view_count');
+      $query->select('id', 'thumbnail_url', 'title', 'average_view_duration', 'view_count', 'duration');
     }])->whereIn('video_id', $videos_id)->whereDate('created_at', '>=', $date)->select('video_id', DB::raw('count(*) AS views'))->groupBy('video_id')->orderByDesc('views')->limit(10)->get();
-
     foreach ($top_contents as $top_content) {
       $top_content->video->makeVisible('average_view_duration');
+      $average_view_sec = $top_content->video->getAttributes()['duration']*($top_content->video->average_view_duration/100);
+      $top_content->video->average_view_duration = ($average_view_sec < 3600)?gmdate("i:s", $average_view_sec):gmdate("H:i:s", $average_view_sec);
     }
     return [
       'views_and_watch_time_data' => [
@@ -88,9 +89,8 @@ class DashboardApi extends Controller
     $watch_time_total = $views->sum('view_duration');
     $views_and_watch_time_analytics = $views->select(DB::raw('DATE_FORMAT(DATE(created_at), "%d-%b-%Y") as date'), DB::raw('count(*) AS view'), DB::raw('sum(view_duration) AS watch_time'))->groupBy('date')->get();
 
-    $subscribers = Subscriber::where('channel_id', $id)->where('video_id', $video_id);
-    $subscribers_total = $subscribers->count();
-    $subscribers_analytics = $subscribers->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) AS subscribe'))->groupBy('date')->get();
+    $subscribers_analytics = Subscriber::withTrashed()->where('channel_id', $id)->where('video_id', $video_id)->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(status) AS subscribe'))->groupBy('date')->get();
+    $subscribers_total = $subscribers_analytics->sum('subscribe');
 
     return [
       'views_and_watch_time_data' => [

@@ -72,45 +72,79 @@ class channelApi extends Controller
     ], 451);
   }
 
-  // Subscribe or Unsubscribe a channel
-  public function handleSubscribe(Request $request, $channel_id, $video_id=null) {
-    $channel = Channel::find($channel_id);
-    $user_id = $request->user()->id;
+  // Subscribe a channel
+  public function subscribe($channel_id, $video_id = null) {
+    $user_id = auth()->user()->id;
     if ($channel_id == $user_id) {
       return response()->json([
         'success' => false,
-        'message' => 'Can\'t subscribe to your own channel'
+        'message' => 'You haven\'t permition to subscribe or unsubscribe your own channel!'
       ], 406);
     }
-    $old_subscribe = Subscriber::where('channel_id', $channel_id)->where('subscriber_id', $user_id);
-    if (count($old_subscribe->get()) !== 0) {
-      $result = $old_subscribe->delete();
+    if (Subscriber::where('channel_id', $channel_id)->where('subscriber_id', $user_id)->exists()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Channel already exist in your subscriptions!'
+      ], 406);
+    }
+    $channel = Channel::find($channel_id);
+    $deleted_subscribe = Subscriber::onlyTrashed()->where('channel_id', $channel_id)->where('subscriber_id', $user_id)->first();
+    if ($deleted_subscribe) {
+      $deleted_subscribe->video_id = $video_id;
+      $deleted_subscribe->status = 1;
+      $deleted_subscribe->deleted_at = null;
+      $result = $deleted_subscribe->save();
       if ($result) {
-        $channel->decrement('total_subscribers', 1);
+        $channel->increment('total_subscribers', 1);
         return ['success' => true,
-          'message' => 'Unsubscribed'];
+          'message' => 'Subscribed!'];
       }
       return response()->json(['success' => false], 451);
     }
     $subscriber = new Subscriber;
-    $subscriber->subscriber_id = $user_id;
     $subscriber->channel_id = $channel_id;
+    $subscriber->subscriber_id = $user_id;
     $subscriber->video_id = $video_id;
     $result = $subscriber->save();
     if ($result) {
       $channel->increment('total_subscribers', 1);
-      $subscriber_channel = Channel::find($user_id, ['name', 'logo_url']);
       $notification = new Notification;
       $notification->from = $user_id;
       $notification->for = $channel_id;
       $notification->url = route('channel.show', ['id' => $user_id]);
-      $notification->logo_url = $subscriber_channel->logo_url;
+      $notification->logo_url = auth()->user()->channel->logo_url;
       $notification->type = "subscribe";
-      $notification->text = "New subscriber: ".$subscriber_channel->name;
+      $notification->text = "New subscriber: ".auth()->user()->channel->name;
       $notification->save();
-
       return ['success' => true,
-        'message' => 'Subscribed'];
+        'message' => 'Subscribed!'];
+    }
+    return response()->json(['success' => false], 451);
+  }
+
+  // Unsubscribe a channel
+  public function unsubscribe($channel_id, $video_id = null) {
+    $user_id = auth()->user()->id;
+    if ($channel_id == $user_id) {
+      return response()->json([
+        'success' => false,
+        'message' => 'You haven\'t permition to subscribe or unsubscribe your own channel!'
+      ], 406);
+    }
+    $subscriber = Subscriber::where('channel_id', $channel_id)->where('subscriber_id', $user_id)->first();
+    if (!$subscriber) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Channel not exist in your subscriptions!'
+      ], 406);
+    }
+    $channel = Channel::find($channel_id);
+    $subscriber->update(['video_id' => $video_id, 'status' => -1]);
+    $result = $subscriber->delete();
+    if ($result) {
+      $channel->decrement('total_subscribers', 1);
+      return ['success' => true,
+        'message' => 'Unsubscribed!'];
     }
     return response()->json(['success' => false], 451);
   }
@@ -119,8 +153,8 @@ class channelApi extends Controller
   public function getChannelVideos(Request $request, $id = null) {
     $id = $id??$request->user()->id;
     $videos = ($request->user()->is_admin || $request->user()->id === $id)
-      ?Video::where('channel_id', $id)->latest()->cursorPaginate($this->maxDataPerRequest)
-      :Video::where('channel_id', $id)->where('visibility', 'public')->latest()->cursorPaginate($this->maxDataPerRequest);
+    ?Video::where('channel_id', $id)->latest()->cursorPaginate($this->maxDataPerRequest)
+    :Video::where('channel_id', $id)->where('visibility', 'public')->latest()->cursorPaginate($this->maxDataPerRequest);
     return [
       'success' => true,
       'videos' => $videos
