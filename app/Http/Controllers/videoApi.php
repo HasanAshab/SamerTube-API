@@ -25,6 +25,7 @@ use App\Models\SavedPlaylist;
 use App\Models\Report;
 use DB;
 use Carbon\Carbon;
+use App\Jobs\PublishVideo;
 
 class videoApi extends Controller
 {
@@ -43,7 +44,8 @@ class videoApi extends Controller
     $request->validate([
       'title' => 'bail|required|string|between:1,72',
       'description' => 'bail|required|string|max:300',
-      'visibility' => 'bail|required|in:public,private',
+      'visibility' => 'bail|required|in:public,private,scheduled',
+      'publish_at' => 'date_format:Y-m-d H:i:s|after_or_equal:'.date(DATE_ATOM),
       'category_id' => 'bail|required|exists:categories,id',
       'video' => 'bail|required|mimes:mp4',
       'thumbnail' => 'bail|required|image'
@@ -64,6 +66,7 @@ class videoApi extends Controller
     $video->thumbnail_url = URL::signedRoute('file.serve', ['type' => 'thumbnail', 'id' => $video->getNextId()]);
     $result = $video->save();
     if ($result) {
+      if($video->visibility === 'public'){
       $video->channel->increment('total_videos', 1);
       $text = $video->channel->name." uploaded: &quot;".$request->title."&quot;";
       $notification = new Notification;
@@ -74,6 +77,10 @@ class videoApi extends Controller
       $notification->logo_url = $video->channel->logo_url;
       $notification->thumbnail_url = $video->thumbnail_url;
       $notification->save();
+      }
+      else if($video->visibility === 'scheduled'){
+        PublishVideo::dispatch($video, true)->delay($request->publish_at);
+      }
       return ['success' => $result,
         'message' => 'Video successfully uploaded!'];
     }
@@ -87,13 +94,14 @@ class videoApi extends Controller
     $request->validate([
       'title' => 'bail|required|string|between:1,72',
       'description' => 'bail|required|string|max:300',
-      'visibility' => 'bail|required|in:public,private',
+      'visibility' => 'bail|required|in:public,private,scheduled',
+      'publish_at' => 'date_format:Y-m-d H:i:s|after_or_equal:'.date(DATE_ATOM),
       'category_id' => 'bail|required|between:1,9',
       'tags' => ['bail', new CSVRule(), 'between:2,400'],
       'thumbnail' => 'image'
     ]);
     $video = Video::find($id);
-    if ($video->channel_id !== $request->user()->id) {
+    if ($video->channel_id === $request->user()->id) {
       return accessDenied();
     }
     $video->title = $request->title;
@@ -108,6 +116,9 @@ class videoApi extends Controller
     $result = $video->save();
 
     if ($result) {
+      if($video->visibility === 'scheduled'){
+        PublishVideo::dispatch($video, false)->delay($request->publish_at);
+      }
       return ['success' => true,
         'message' => 'Video successfully updated!'];
     }
@@ -121,7 +132,7 @@ class videoApi extends Controller
   // Get details of a video to watch
   public function watch(Request $request, $id) {
     $video = Video::where('id', $id)->channel(['name', 'logo_url', 'total_subscribers'])->first();
-    if (!$request->user()->is_admin && $video->visibility === 'private' && $video->channel_id !== $request->user()->id) {
+    if (!$request->user()->is_admin && $video->visibility !== 'public' && $video->channel_id !== $request->user()->id) {
       return accessDenied();
     }
     $old_history = History::where('user_id', $request->user()->id)->where('type', 'video')->where('history', $id)->first();
@@ -264,7 +275,7 @@ class videoApi extends Controller
     ]);
     $video = Video::find($video_id);
 
-    if ($video->visibility === "private" && $video->channel_id !== $reviewer_id) {
+    if ($video->visibility !== "public" && $video->channel_id !== $reviewer_id) {
       return accessDenied();
     }
     $reviewer_id = $request->user()->id;
@@ -311,7 +322,7 @@ class videoApi extends Controller
     ]);
     $commenter_id = $request->user()->id;
     $video = Video::find($video_id);
-    if ($video->visibility === "private" && $video->channel_id !== $commenter_id) {
+    if ($video->visibility !== "public" && $video->channel_id !== $commenter_id) {
       return accessDenied();
     }
     $comment = new Comment;
@@ -343,7 +354,7 @@ class videoApi extends Controller
   // Get all comments of a specific video
   public function getComments(Request $request, $video_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->is_admin && ($video->visibility === "private" && $video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->is_admin && ($video->visibility !== "public" && $video->channel_id !== $request->user()->id)) {
       return accessDenied();
     }
     $comments = $video->comments;
@@ -357,7 +368,7 @@ class videoApi extends Controller
   // Get all comments of a video with 1 highlighted one. for notification view
   public function getCommentsWithHighlighted(Request $request, $video_id, $comment_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->is_admin && ($video->visibility === "private" && $video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->is_admin && ($video->visibility !== "public" && $video->channel_id !== $request->user()->id)) {
       return accessDenied();
     }
     $comments = $video->comments;
@@ -419,7 +430,7 @@ class videoApi extends Controller
     $comment = Comment::find($comment_id);
 
     $reviewer_id = $request->user()->id;
-    if ($comment->video->visibility === "private" && $comment->video->channel_id !== $reviewer_id) {
+    if ($comment->video->visibility !== "public" && $comment->video->channel_id !== $reviewer_id) {
       return accessDenied();
     }
     $review = CommentReview::where([['comment_id', $comment_id], ['reviewer_id', $reviewer_id]])->first();
@@ -467,7 +478,7 @@ class videoApi extends Controller
     $replier_id = $request->user()->id;
     $comment = Comment::find($comment_id);
 
-    if ($comment->video->visibility === "private" && $comment->video->channel_id !== $commenter_id) {
+    if ($comment->video->visibility !== "public" && $comment->video->channel_id !== $commenter_id) {
       return accessDenied();
     }
     $reply = new Reply;
@@ -499,7 +510,7 @@ class videoApi extends Controller
   public function getReplies(Request $request, $comment_id) {
     $comment = Comment::find($comment_id);
 
-    if (!$request->user()->is_admin && ($comment->video->visibility === "private" && $comment->video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->is_admin && ($comment->video->visibility !== "public" && $comment->video->channel_id !== $request->user()->id)) {
       return accessDenied();
     }
     $replies = $comment->replies;
@@ -573,7 +584,7 @@ class videoApi extends Controller
     $reply = Reply::find($reply_id);
 
     $reviewer_id = $request->user()->id;
-    if ($reply->video->visibility === "private" && $reply->video->channel_id !== $reviewer_id) {
+    if ($reply->video->visibility !== "public" && $reply->video->channel_id !== $reviewer_id) {
       return accessDenied();
     }
     $review = ReplyReview::where('reply_id', $reply_id)->where('reviewer_id', $reviewer_id)->first();
@@ -934,13 +945,15 @@ class videoApi extends Controller
   // Get all videos of a playlist
   public function getPlaylistVideos($id) {
     $playlist = Playlist::find($id);
-    if ($playlist->visibility === "private" && !auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+    if ($playlist->visibility !== "public" && !auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
       return accessDenied();
     }
     $playlist_videos = array();
     foreach ($playlist->videos as $playlist_video) {
       $video = Video::where('id', $playlist_video->video_id)->channel(['name'])->first();
-      array_push($playlist_videos, $video);
+      if($video->visibility === 'public'){
+        array_push($playlist_videos, $video);
+      }
     }
     return $playlist_videos;
   }

@@ -7,6 +7,7 @@ use App\Http\Controllers\channelApi;
 use App\Http\Controllers\videoApi;
 use App\Http\Controllers\fileApi;
 use App\Http\Controllers\DashboardApi;
+use App\Jobs\PublishVideo;
 
 // Endpoints to Verify email
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
@@ -36,12 +37,16 @@ Route::group([
   'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
 
 ], function ($router) {
-  Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
-  Route::post('notify', [adminApi::class, 'sentNotification']);
-  Route::post('category', [adminApi::class, 'addCategory']);
-  Route::delete('user/{id}', [adminApi::class, 'removeUser']);
-  Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
-  Route::delete('notification/{id}', [adminApi::class, 'removeNotification']);
+  Route::group([
+    'prefix' => 'c-panel'
+  ], function ($router) {
+    Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
+    Route::post('notify', [adminApi::class, 'sentNotification']);
+    Route::post('category', [adminApi::class, 'addCategory']);
+    Route::delete('user/{id}', [adminApi::class, 'removeUser']);
+    Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
+    Route::delete('notification/{id}', [adminApi::class, 'removeNotification']);
+  });
   Route::group([
     'prefix' => 'dashboard'
   ], function ($router) {
@@ -59,7 +64,7 @@ Route::group([
 
 //Endpoints for  Serve files from server storage
 Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
-
+Route::get('app/name', fn() => config('app.name'));
 // Endpoints for logged in users
 Route::group([
   'middleware' => ['api', 'auth:sanctum', 'verified', 'throttle:20,1']
@@ -125,4 +130,7 @@ Route::group([
   });
 });
 
-Route::get('/test', function() {});
+Route::get('/test', function() {
+  $video = App\Models\Video::first();
+  PublishVideo::dispatch($video)->delay(now()->addMinutes(0.30));
+});
