@@ -26,6 +26,9 @@ class Channel extends Model
     'updated_at'
   ];
 
+  public function user() {
+    return $this->hasOne(User::class, 'id', 'id');
+  }
   public function videos() {
     return $this->hasMany(Video::class);
   }

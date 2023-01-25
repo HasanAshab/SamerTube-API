@@ -8,6 +8,8 @@ use App\Models\Channel;
 use App\Models\Video;
 use App\Models\Subscriber;
 use App\Models\Notification;
+use App\Mail\SubscribedMail;
+use Mail;
 
 class channelApi extends Controller
 {
@@ -116,6 +118,13 @@ class channelApi extends Controller
       $notification->type = "subscribe";
       $notification->text = "New subscriber: ".auth()->user()->channel->name;
       $notification->save();
+      $data = [
+        'subject' => $notification->text,
+        'subscriber_name' => auth()->user()->channel->name,
+        'subscriber_logo_url' => auth()->user()->channel->logo_url,
+        'link' => $notification->url
+      ];
+      Mail::to($channel->user->email)->send(new SubscribedMail($data));
       return ['success' => true,
         'message' => 'Subscribed!'];
     }

@@ -130,6 +130,7 @@ Route::group([
   });
 });
 
+Route::post('video/upload', [videoApi::class, 'store']);
 Route::get('/test', function() {
   $video = App\Models\Video::first();
   PublishVideo::dispatch($video)->delay(now()->addMinutes(0.30));

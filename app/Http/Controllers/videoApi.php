@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use App\Rules\CSVRule;
+use App\Models\User;
 use App\Models\Video;
 use App\Models\View;
 use App\Models\Category;
@@ -26,6 +27,12 @@ use App\Models\Report;
 use DB;
 use Carbon\Carbon;
 use App\Jobs\PublishVideo;
+use App\Mail\VideoUploadedMail;
+use App\Mail\CommentedMail;
+use App\Mail\RepliedMail;
+use App\Mail\LikedMail;
+use App\Mail\GotHeartMail;
+use Mail;
 
 class videoApi extends Controller
 {
@@ -35,8 +42,8 @@ class videoApi extends Controller
   //Get all public videos
   public function explore() {
     return (auth()->user()->is_admin)
-      ?Video::rank()->channel(['name', 'logo_url'])->cursorPaginate($this->maxDataPerRequest)
-      :Video::rank()->where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
+    ?Video::rank()->channel(['name', 'logo_url'])->cursorPaginate($this->maxDataPerRequest)
+    :Video::rank()->where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
   }
 
   // Save a new video
@@ -51,7 +58,7 @@ class videoApi extends Controller
       'thumbnail' => 'bail|required|image'
     ]);
     $video = new Video;
-    $video->channel_id = $request->user()->id;
+    $video->channel_id = $request->uploader_id; //user()->id;
     $video->title = $request->title;
     $video->description = $request->description;
     $video->category_id = $request->category_id;
@@ -66,19 +73,29 @@ class videoApi extends Controller
     $video->thumbnail_url = URL::signedRoute('file.serve', ['type' => 'thumbnail', 'id' => $video->getNextId()]);
     $result = $video->save();
     if ($result) {
-      if($video->visibility === 'public'){
-      $video->channel->increment('total_videos', 1);
-      $text = $video->channel->name." uploaded: &quot;".$request->title."&quot;";
-      $notification = new Notification;
-      $notification->from = $video->channel_id;
-      $notification->type = "video";
-      $notification->text = $text;
-      $notification->url = $video->link;
-      $notification->logo_url = $video->channel->logo_url;
-      $notification->thumbnail_url = $video->thumbnail_url;
-      $notification->save();
-      }
-      else if($video->visibility === 'scheduled'){
+      if ($video->visibility === 'public') {
+        $video->channel->increment('total_videos', 1);
+        $text = $video->channel->name." uploaded: &quot;".$request->title."&quot;";
+        $notification = new Notification;
+        $notification->from = $video->channel_id;
+        $notification->type = "video";
+        $notification->text = $text;
+        $notification->url = $video->link;
+        $notification->logo_url = $video->channel->logo_url;
+        $notification->thumbnail_url = $video->thumbnail_url;
+        $notification->save();
+        $subscribers_id = Subscriber::where('channel_id', $video->channel_id)->pluck('subscriber_id');
+        $subscribers_email = User::whereIn('id', $subscribers_id)->pluck('email');
+        $data = [
+          'subject' => str_replace('&quot;', '\"', $text),
+          'channel_name' => $video->channel->name,
+          'channel_logo_url' => $video->channel->logo_url,
+          'title' => $video->title,
+          'description' => substr($video->description, 0, 50).'...',
+          'link' => $video->link,
+        ];
+        $this->notify($subscribers_email, $data, $notification->type);
+      } else if ($video->visibility === 'scheduled') {
         PublishVideo::dispatch($video, true)->delay($request->publish_at);
       }
       return ['success' => $result,
@@ -116,7 +133,7 @@ class videoApi extends Controller
     $result = $video->save();
 
     if ($result) {
-      if($video->visibility === 'scheduled'){
+      if ($video->visibility === 'scheduled') {
         PublishVideo::dispatch($video, false)->delay($request->publish_at);
       }
       return ['success' => true,
@@ -148,15 +165,14 @@ class videoApi extends Controller
     $video->subscribed = Subscriber::where('subscriber_id', $request->user()->id)->where('channel_id', $video->channel_id)->exists();
     return $video;
   }
-  
+
   // Set watch time of a view
-  public function setViewWatchTime($id, $time){
+  public function setViewWatchTime($id, $time) {
     $view = View::where('user_id', auth()->user()->id)->where('video_id', $id)->first();
-    if($view){
+    if ($view) {
       $view->view_duration += $time;
       $result = $view->save();
-    }
-    else{
+    } else {
       $view = new View;
       $view->user_id = auth()->user()->id;
       $view->video_id = $id;
@@ -164,8 +180,8 @@ class videoApi extends Controller
       $result = $view->save() && Video::find($id)->increment('view_count', 1);
     }
     return $result
-      ?['success' => true]
-      :response()->json(['success' => false], 451);
+    ?['success' => true]
+    :response()->json(['success' => false], 451);
   }
   // Delete own video
   public function destroy($id) {
@@ -249,21 +265,21 @@ class videoApi extends Controller
     $id = $request->user()->id;
     $dates = History::where('user_id', $id)->where('type', 'video')->select(DB::raw('DATE(created_at) as date'))->distinct('date')->latest()->pluck('date');
     $histories = collect();
-    foreach ($dates as $date){
+    foreach ($dates as $date) {
       $videos = History::whereDate('histories.created_at', $date)->where('type', 'video')->where('user_id', $id)->join('videos', 'videos.id', '=', 'histories.history')->join('channels', 'channels.id', 'videos.channel_id')->select('history', 'channels.name', 'videos.title', DB::raw('TIME_FORMAT(SEC_TO_TIME(videos.duration), "%i:%s") AS duration'), 'videos.thumbnail_url')->get();
       $histories->push(['date' => $this->parse_date($date), 'videos' => $videos]);
     }
     return $histories;
   }
-  
+
   // Get liked videos
-  public function getLikedVideos(){
+  public function getLikedVideos() {
     $liked_videos_id = Review::where('reviewer_id', auth()->user()->id)->where('review', 1)->pluck('video_id');
     return Video::whereIn('id', $liked_videos_id)->channel(['name'])->get();
   }
-  
+
   // Get watch later videos
-  public function getWatchLaterVideos(){
+  public function getWatchLaterVideos() {
     $watch_later_videos_id = WatchLater::where('user_id', auth()->user()->id)->pluck('video_id');
     return Video::whereIn('id', $watch_later_videos_id)->channel(['name'])->get();
   }
@@ -334,17 +350,25 @@ class videoApi extends Controller
       $video->increment('comment_count', 1);
       $video->channel->increment('total_comments', 1);
       if ($video->channel_id !== $commenter_id) {
-        $channel = Channel::find($commenter_id, ['name', 'logo_url']);
-        $text = $channel->name." commented: &quot;".$comment->text."&quot;";
+        $text = $request->user()->channel->name." commented: &quot;".$comment->text."&quot;";
         $notification = new Notification;
         $notification->from = $commenter_id;
         $notification->for = $video->channel_id;
         $notification->type = "comment";
         $notification->url = URL::signedRoute('comments.highlighted', ['video_id' => $video->id, 'comment_id' => $comment->id]);
         $notification->text = $text;
-        $notification->logo_url = $channel->logo_url;
+        $notification->logo_url = $request->user()->channel->logo_url;
         $notification->thumbnail_url = $video->thumbnail_url;
         $notification->save();
+        $data = [
+          'subject' => str_replace('&quot;', '\"', $text),
+          'commenter_name' => $request->user()->channel->name,
+          'commenter_logo_url' => $request->user()->channel->logo_url,
+          'text' => $comment->text,
+          'link' => $notification->url,
+        ];
+        $uploader_email = User::find($video->channel_id)->email;
+        $this->notify($uploader_email, $data, $notification->type);
       }
       return ['success' => true];
     }
@@ -461,8 +485,17 @@ class videoApi extends Controller
         $notification->type = "like";
         $notification->text = $text;
         $notification->url = URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $comment_id]);
-        $notification->logo_url = "TODO";
+        $notification->logo_url = URL::signedRoute('file.serve', ['type' => 'company-logo']);
         $notification->save();
+        $commenter = User::find($comment->commenter_id);
+        $data = [
+          'subject' => str_replace('&quot;', '\"', $text),
+          'name' => $commenter->channel->name,
+          'logo_url' => $commenter->channel->logo_url,
+          'text' => $comment->text,
+          'link' => $notification->url,
+        ];
+        $this->notify($commenter->email, $data, $notification->type);
       }
       return ['success' => true];
     }
@@ -489,17 +522,25 @@ class videoApi extends Controller
     if ($result) {
       $comment->increment('reply_count', 1);
       if ($comment->commenter_id !== $replier_id) {
-        $channel = Channel::find($replier_id, ['name', 'logo_url']);
-        $text = $channel->name." replied: &quot;".$reply->text."&quot;";
+        $text = $request->user()->channel->name." replied: &quot;".$reply->text."&quot;";
         $notification = new Notification;
         $notification->from = $replier_id;
         $notification->for = $comment->commenter_id;
         $notification->type = "reply";
         $notification->text = $text;
         $notification->url = URL::signedRoute('replies.highlighted', ['comment_id' => $comment_id, 'reply_id' => $reply->id]);
-        $notification->logo_url = $channel->logo_url;
+        $notification->logo_url = $request->user()->channel->logo_url;
         $notification->thumbnail_url = $comment->video->thumbnail_url;
         $notification->save();
+        $data = [
+          'subject' => str_replace('&quot;', '\"', $text),
+          'replier_name' => $request->user()->channel->name,
+          'replier_logo_url' => $request->user()->channel->logo_url,
+          'text' => $reply->text,
+          'link' => $notification->url,
+        ];
+        $uploader_email = User::find($video->channel_id)->email;
+        $this->notify($uploader_email, $data, $notification->type);
       }
       return ['success' => true];
     }
@@ -615,8 +656,18 @@ class videoApi extends Controller
         $notification->type = "like";
         $notification->text = $text;
         $notification->url = URL::signedRoute('replies.highlighted', ['comment_id' => $reply->comment_id, 'reply_id' => $reply->id]);
-        $notification->logo_url = "TODO";
+        $notification->logo_url = URL::signedRoute('file.serve', ['type' => 'company-logo']);
         $notification->save();
+        $replier = User::find($reply->commenter_id);
+        $data = [
+          'subject' => str_replace('&quot;', '\"', $text),
+          'name' => $replier->channel->name,
+          'logo_url' => $replier->channel->logo_url,
+          'text' => $reply->text,
+          'link' => $notification->url,
+        ];
+        $this->notify($replier->email, $data, $notification->type);
+
       }
       return ['success' => true];
     }
@@ -635,41 +686,60 @@ class videoApi extends Controller
     $comment->heart = intval(!$comment->heart);
     $result = $comment->save();
     if ($result) {
-      if ($comment->heart)
+      if ($comment->heart) {
         $name = Channel::where('id', $user_id)->value('name');
-      $text = "Your comment got a ❤️ from $name!";
-      $notification = new Notification;
-      $notification->from = $user_id;
-      $notification->for = ($type == "comment")
-      ?$comment->commenter_id
-      :$comment->replier_id;
-      $notification->url = ($type == "comment")
-      ?URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $id])
-      :URL::signedRoute('replies.highlighted', ['comment_id' => $comment_id, 'reply_id' => $id]);
-      $notification->type = "heart";
-      $notification->text = $text;
-      $notification->logo_url = $comment->video->channel->logo_url;
-      $notification->save();
+        $text = "Your comment got a ❤️ from $name!";
+        $notification = new Notification;
+        $notification->from = $user_id;
+        $notification->for = ($type == "comment")
+        ?$comment->commenter_id
+        :$comment->replier_id;
+        $notification->url = ($type == "comment")
+        ?URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $id])
+        :URL::signedRoute('replies.highlighted', ['comment_id' => $comment_id, 'reply_id' => $id]);
+        $notification->type = "heart";
+        $notification->text = $text;
+        $notification->logo_url = $comment->video->channel->logo_url;
+        $notification->save();
+        $commenter = User::find($notification->for);
+        $data = [
+          'subject' => str_replace('&quot;',
+            '\"',
+            $text),
+          'name' => auth()->user()->channel->name,
+          'logo_url' => auth()->user()->channel->logo_url,
+          'text' => $comment->text,
+          'link' => $notification->url,
+        ];
+        $this->notify($commenter->email,
+          $data,
+          $notification->type);
+      }
       return ['success' => true];
     }
-    return response()->json(['success' => false], 451);
+    return response()->json(['success' => false],
+      451);
   }
 
   // Get all notifications of a user
   public function getNotifications(Request $request) {
     $id = $request->user()->id;
-    $subscriptions_id = Subscriber::where('subscriber_id', $id)->pluck('channel_id');
-    $hidden_notifications_id = Hidden::where('user_id', $id)->pluck('notification_id');
+    $subscriptions_id = Subscriber::where('subscriber_id',
+      $id)->pluck('channel_id');
+    $hidden_notifications_id = Hidden::where('user_id',
+      $id)->pluck('notification_id');
     $notifications = Notification::where(function ($query) use ($subscriptions_id) {
       $query->where('type', 'video')->whereIn('from', $subscriptions_id);
     })->orWhere(function ($query) use ($id) {
       $query->whereIn('type', ['comment', 'reply', 'heart', 'subscribe', 'like'])->where('for', $id);
-    })->whereNotIn('id', $hidden_notifications_id)->latest()->limit(40)->get();
+    })->whereNotIn('id',
+      $hidden_notifications_id)->latest()->limit(40)->get();
     return $notifications;
   }
 
   // Hide a Notification
-  public function hideNotification(Request $request, $notification_id) {
+  public function hideNotification(Request $request,
+    $notification_id) {
     $hidden = new Hidden;
     $hidden->user_id = $request->user()->id;
     $hidden->notification_id = $notification_id;
@@ -717,10 +787,10 @@ class videoApi extends Controller
       'link' => route('videos.watchLater'),
       'thumbnail_url' => URL::signedRoute('file.serve', ['type' => 'watch-later'])
     ];
-    $playlists = Playlist::where('user_id', auth()->user()->id)->orWhere(function ($query) use ($saved_playlists_id){
+    $playlists = Playlist::where('user_id', auth()->user()->id)->orWhere(function ($query) use ($saved_playlists_id) {
       $query->whereIn('id', $saved_playlists_id);
     })->orderByDesc('updated_at')->get();
-    
+
     $playlists->prepend($liked_videos_playlist);
     $playlists->prepend($watch_later);
     return $playlists;
@@ -890,7 +960,7 @@ class videoApi extends Controller
       'message' => 'Failed to remove video!'
     ], 451);
   }
-  
+
   // Add video to Watch Later
   public function addVideoToWatchLater($video_id) {
     if (!Video::find($video_id)) {
@@ -920,9 +990,9 @@ class videoApi extends Controller
       'message' => 'Failed to add video!'
     ], 451);
   }
-  
+
   // Remove video from watch later
-  public function removeVideoFromWatchLater($video_id){
+  public function removeVideoFromWatchLater($video_id) {
     if (!Video::find($video_id)) {
       return response()->json([
         'success' => false,
@@ -930,7 +1000,7 @@ class videoApi extends Controller
       ], 404);
     }
     $result = WatchLater::where('user_id', auth()->user()->id)->where('video_id', $video_id)->delete();
-    if($result){
+    if ($result) {
       return [
         'success' => true,
         'message' => 'Video removed from watch later!'
@@ -951,20 +1021,20 @@ class videoApi extends Controller
     $playlist_videos = array();
     foreach ($playlist->videos as $playlist_video) {
       $video = Video::where('id', $playlist_video->video_id)->channel(['name'])->first();
-      if($video->visibility === 'public'){
+      if ($video->visibility === 'public') {
         array_push($playlist_videos, $video);
       }
     }
     return $playlist_videos;
   }
-  
+
   // Report any content material
-  protected function report(Request $request, $id){
+  protected function report(Request $request, $id) {
     $request->validate([
       'type' => 'required|in:image_or_title,video,user,comment,reply',
       'reason' => 'required|string|between:10,100'
     ]);
-    
+
     $report = new Report;
     $report->user_id = $request->user()->id;
     $report->type = $request->type;
@@ -989,19 +1059,28 @@ class videoApi extends Controller
     return $file->storeAs("uploads/$path", $file_name, 'public');
   }
 
-  // Clear Unimportant files from server storage
+  // Clear Outdated files from server storage
   protected function clear($path) {
     return unlink(storage_path("app/public/$path"));
   }
-  
-  protected function parse_date($date) {
-    $carbonDate = Carbon::parse($date);
-    if($carbonDate->isToday()) return "Today";
-    if($carbonDate->isYesterday()) return "Yesterday";
-    if($carbonDate->week == Carbon::now()->week) {
-        return $carbonDate->format('l');
+
+
+  // Sent notification to user
+  protected function notify($emails, $data, $type) {
+    if ($type === 'video') {
+      foreach ($emails as $email) {
+        Mail::to($email)->send(new VideoUploadedMail($data));
+      }
+    } else if ($type === 'comment') {
+      Mail::to($emails)->send(new CommentedMail($data));
+    } else if ($type === 'reply') {
+      Mail::to($emails)->send(new RepliedMail($data));
+    } else if ($type === 'liked') {
+      Mail::to($emails)->send(new LikedMail($data));
+    } else if ($type === 'heart') {
+      Mail::to($emails)->send(new GotHeartMail($data));
+    } else {
+      return false;
     }
-    
-    return $carbonDate->format('j M Y');
-}
+  }
 }

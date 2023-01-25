@@ -41,6 +41,9 @@ class fileApi extends Controller
       else if($type === "liked-videos"){
         return response()->file(storage_path("app/public/assets/liked_videos.png"));
       }
+      else if($type === "company-logo"){
+        return response()->file(storage_path("app/public/assets/company-logo.jpg"));
+      }
       else if($type === "watch-later"){
         return response()->file(storage_path("app/public/assets/watch_later.png"));
       }

@@ -45,8 +45,7 @@ class CreateAdmin extends Command
     protected function createChannel($id, $name, $country) {
       $channel = new Channel;
       $channel->name = $name;
-      $channel->logo_path = 'assets/admin_logo.jpg';
-      $channel->logo_url = URL::signedRoute('file.serve', ['type' => 'logo', 'id' => $id]);
+      $channel->logo_url = URL::signedRoute('file.serve', ['type' => 'company-logo']);
       $channel->country = $country;
       return $channel->save();
     }
