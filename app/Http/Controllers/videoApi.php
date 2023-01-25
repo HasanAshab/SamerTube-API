@@ -87,7 +87,7 @@ class videoApi extends Controller
         $subscribers_id = Subscriber::where('channel_id', $video->channel_id)->pluck('subscriber_id');
         $subscribers_email = User::whereIn('id', $subscribers_id)->pluck('email');
         $data = [
-          'subject' => str_replace('&quot;', '\"', $text),
+          'subject' => str_replace('&quot;', '"', $text),
           'channel_name' => $video->channel->name,
           'channel_logo_url' => $video->channel->logo_url,
           'title' => $video->title,
@@ -361,11 +361,12 @@ class videoApi extends Controller
         $notification->thumbnail_url = $video->thumbnail_url;
         $notification->save();
         $data = [
-          'subject' => str_replace('&quot;', '\"', $text),
+          'subject' => str_replace('&quot;', '"', $text),
           'commenter_name' => $request->user()->channel->name,
           'commenter_logo_url' => $request->user()->channel->logo_url,
           'text' => $comment->text,
-          'link' => $notification->url,
+          'heart_url' => URL::signedRoute('heart.instantly', ['user_id' => $video->channel_id, 'comment_id' => $comment->id]),
+          'link' => $notification->url
         ];
         $uploader_email = User::find($video->channel_id)->email;
         $this->notify($uploader_email, $data, $notification->type);
@@ -489,7 +490,7 @@ class videoApi extends Controller
         $notification->save();
         $commenter = User::find($comment->commenter_id);
         $data = [
-          'subject' => str_replace('&quot;', '\"', $text),
+          'subject' => str_replace('&quot;', '"', $text),
           'name' => $commenter->channel->name,
           'logo_url' => $commenter->channel->logo_url,
           'text' => $comment->text,
@@ -533,7 +534,7 @@ class videoApi extends Controller
         $notification->thumbnail_url = $comment->video->thumbnail_url;
         $notification->save();
         $data = [
-          'subject' => str_replace('&quot;', '\"', $text),
+          'subject' => str_replace('&quot;', '"', $text),
           'replier_name' => $request->user()->channel->name,
           'replier_logo_url' => $request->user()->channel->logo_url,
           'text' => $reply->text,
@@ -660,7 +661,7 @@ class videoApi extends Controller
         $notification->save();
         $replier = User::find($reply->commenter_id);
         $data = [
-          'subject' => str_replace('&quot;', '\"', $text),
+          'subject' => str_replace('&quot;', '"', $text),
           'name' => $replier->channel->name,
           'logo_url' => $replier->channel->logo_url,
           'text' => $reply->text,
@@ -687,8 +688,8 @@ class videoApi extends Controller
     $result = $comment->save();
     if ($result) {
       if ($comment->heart) {
-        $name = Channel::where('id', $user_id)->value('name');
-        $text = "Your comment got a ❤️ from $name!";
+        $channel = auth()->user()->channel;
+        $text = "Your comment got a ❤️ from ".$channel->name."!";
         $notification = new Notification;
         $notification->from = $user_id;
         $notification->for = ($type == "comment")
@@ -703,24 +704,54 @@ class videoApi extends Controller
         $notification->save();
         $commenter = User::find($notification->for);
         $data = [
-          'subject' => str_replace('&quot;',
-            '\"',
-            $text),
-          'name' => auth()->user()->channel->name,
-          'logo_url' => auth()->user()->channel->logo_url,
+          'subject' => str_replace('&quot;', '"', $text),
+          'name' => $channel->name,
+          'logo_url' => $channel->logo_url,
           'text' => $comment->text,
           'link' => $notification->url,
         ];
-        $this->notify($commenter->email,
-          $data,
-          $notification->type);
+        $this->notify($commenter->email, $data, $notification->type);
       }
       return ['success' => true];
     }
     return response()->json(['success' => false],
       451);
   }
-
+  // Give heart instantly from mail without authenticate
+  public function giveHeartInstantly($user_id, $comment_id){
+    $comment = Comment::find($comment_id);
+    if ($comment->video->channel_id !== (int)$user_id) {
+      return accessDenied();
+    }
+    $comment->heart = intval(!$comment->heart);
+    $result = $comment->save();
+    if ($result) {
+      if ($comment->heart) {
+        $channel = Channel::find($user_id);
+        $text = "Your comment got a ❤️ from ".$channel->name."!";
+        $notification = new Notification;
+        $notification->from = $user_id;
+        $notification->for = $comment->commenter_id;
+        $notification->url = URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $comment_id]);
+        $notification->type = "heart";
+        $notification->text = $text;
+        $notification->logo_url = $comment->video->channel->logo_url;
+        $notification->save();
+        $commenter = User::find($notification->for);
+        $data = [
+          'subject' => $text,
+          'name' => $channel->name,
+          'logo_url' => $channel->logo_url,
+          'text' => $comment->text,
+          'link' => $notification->url,
+        ];
+        $this->notify($commenter->email, $data, $notification->type);
+      }
+      return ['success' => true];
+    }
+    return response()->json(['success' => false],
+      451);
+  }
   // Get all notifications of a user
   public function getNotifications(Request $request) {
     $id = $request->user()->id;

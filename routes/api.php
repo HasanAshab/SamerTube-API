@@ -62,9 +62,11 @@ Route::group([
   });
 });
 
-//Endpoints for  Serve files from server storage
+//Endpoints that accesseble without auth 
 Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
 Route::get('app/name', fn() => config('app.name'));
+Route::post('heart/{user_id}/{comment_id}/instantly', [videoApi::class, 'giveHeartInstantly'])->middleware(['signed', 'throttle:10,1'])->name('heart.instantly');
+
 // Endpoints for logged in users
 Route::group([
   'middleware' => ['api', 'auth:sanctum', 'verified', 'throttle:20,1']
