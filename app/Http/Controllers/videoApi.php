@@ -114,17 +114,19 @@ class videoApi extends Controller
       'visibility' => 'bail|required|in:public,private,scheduled',
       'publish_at' => 'date_format:Y-m-d H:i:s|after_or_equal:'.date(DATE_ATOM),
       'category_id' => 'bail|required|between:1,9',
+      'allow_comments' => 'bail|required|in:0,1',
       'tags' => ['bail', new CSVRule(), 'between:2,400'],
       'thumbnail' => 'image'
     ]);
     $video = Video::find($id);
-    if ($video->channel_id === $request->user()->id) {
+    if (!$request->user()->can('update', [Video::class, $video])) {
       return accessDenied();
     }
     $video->title = $request->title;
     $video->description = $request->description;
     $video->visibility = $request->visibility;
     $video->category_id = $request->category_id;
+    $video->allow_comments = $request->allow_comments;
     $video->tags = $request->tags;
     if ($request->file('thumbnail') !== null) {
       $this->clear($video->thumbnail_path);
@@ -149,7 +151,7 @@ class videoApi extends Controller
   // Get details of a video to watch
   public function watch(Request $request, $id) {
     $video = Video::where('id', $id)->channel(['name', 'logo_url', 'total_subscribers'])->first();
-    if (!$request->user()->is_admin && $video->visibility !== 'public' && $video->channel_id !== $request->user()->id) {
+    if (!$request->user()->can('watch', [Video::class, $video])) {
       return accessDenied();
     }
     $old_history = History::where('user_id', $request->user()->id)->where('type', 'video')->where('history', $id)->first();
@@ -186,8 +188,7 @@ class videoApi extends Controller
   // Delete own video
   public function destroy($id) {
     $video = Video::find($id);
-
-    if (!auth()->user()->is_admin && $video->channel_id !== auth()->user()->id) {
+    if (!$request->user()->can('delete', [Video::class, $video])) {
       return accessDenied();
     }
     $r3 = $video->delete();
@@ -275,7 +276,7 @@ class videoApi extends Controller
   // Get liked videos
   public function getLikedVideos() {
     $liked_videos_id = Review::where('reviewer_id', auth()->user()->id)->where('review', 1)->pluck('video_id');
-    return Video::whereIn('id', $liked_videos_id)->channel(['name'])->get();
+    return Video::whereIn('id', $liked_videos_id)->where('video_id', 'public')->channel(['name'])->get();
   }
 
   // Get watch later videos
@@ -338,7 +339,7 @@ class videoApi extends Controller
     ]);
     $commenter_id = $request->user()->id;
     $video = Video::find($video_id);
-    if ($video->visibility !== "public" && $video->channel_id !== $commenter_id) {
+    if (!$request->user()->can('create', [Comment::class, $video])) {
       return accessDenied();
     }
     $comment = new Comment;
@@ -379,7 +380,7 @@ class videoApi extends Controller
   // Get all comments of a specific video
   public function getComments(Request $request, $video_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->is_admin && ($video->visibility !== "public" && $video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->can('read', [Comment::class, $video])) {
       return accessDenied();
     }
     $comments = $video->comments;
@@ -393,7 +394,7 @@ class videoApi extends Controller
   // Get all comments of a video with 1 highlighted one. for notification view
   public function getCommentsWithHighlighted(Request $request, $video_id, $comment_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->is_admin && ($video->visibility !== "public" && $video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->can('read', [Comment::class, $video])) {
       return accessDenied();
     }
     $comments = $video->comments;
@@ -416,7 +417,7 @@ class videoApi extends Controller
       'text' => 'bail|required|string|max:300'
     ]);
     $comment = Comment::find($comment_id);
-    if ($comment->commenter_id !== $request->user()->id) {
+    if (!$request->user()->can('update', [Comment::class, $comment])) {
       return accessDenied();
     }
     $comment->text = $request->text;
@@ -431,7 +432,7 @@ class videoApi extends Controller
   public function removeComment(Request $request, $comment_id) {
     $comment = Comment::find($comment_id);
     $user_id = $request->user()->id;
-    if ($request->user()->is_admin || $comment->commenter_id === $user_id || $comment->video->channel_id === $user_id) {
+    if ($request->user()->can('delete', [Comment::class, $comment])) {
       $result = $comment->delete();
       if ($result) {
         $comment->video->decrement('comment_count', 1);
@@ -512,7 +513,7 @@ class videoApi extends Controller
     $replier_id = $request->user()->id;
     $comment = Comment::find($comment_id);
 
-    if ($comment->video->visibility !== "public" && $comment->video->channel_id !== $commenter_id) {
+    if (!$request->user()->can('create', [Reply::class, $comment])) {
       return accessDenied();
     }
     $reply = new Reply;
@@ -552,7 +553,7 @@ class videoApi extends Controller
   public function getReplies(Request $request, $comment_id) {
     $comment = Comment::find($comment_id);
 
-    if (!$request->user()->is_admin && ($comment->video->visibility !== "public" && $comment->video->channel_id !== $request->user()->id)) {
+    if (!$request->user()->can('read', [Reply::class, $comment])) {
       return accessDenied();
     }
     $replies = $comment->replies;
@@ -587,7 +588,7 @@ class videoApi extends Controller
     ]);
     $reply = Reply::find($reply_id);
 
-    if ($reply->reviewer_id !== $request->user()->id) {
+    if (!$request->user()->can('update', [Reply::class, $reply])) {
       return accessDenied();
     }
     $reply->text = $request->text;
@@ -603,7 +604,7 @@ class videoApi extends Controller
     $reply = Reply::find($reply_id);
 
     $user_id = $request->user()->id;
-    if ($request->user()->is_admin || $reply->replier_id === $user_id || $reply->video->channel_id === $user_id) {
+    if ($request->user()->can('delete', [Reply::class, $reply])) {
       $result = $reply->delete();
       if ($result) {
         $reply->comment->decrement('reply_count', 1);
@@ -858,7 +859,7 @@ class videoApi extends Controller
       'visibility' => 'bail|required|in:public,private',
     ]);
     $playlist = Playlist::find($id);
-    if (!$request->user()->is_admin && $playlist->user_id !== $request->user()->id) {
+    if ($playlist->user_id !== $request->user()->id) {
       return accessDenied();
     }
     $playlist->name = $request->name;
@@ -949,7 +950,7 @@ class videoApi extends Controller
       ], 404);
     }
     $playlist = Playlist::find($playlist_id);
-    if (!auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+    if ($playlist->user_id !== auth()->user()->id) {
       return accessDenied();
     }
     $playlist_video_exists = PlaylistVideo::where('playlist_id', $playlist_id)->where('video_id', $video_id)->exists();
@@ -976,7 +977,7 @@ class videoApi extends Controller
   // Remove video from a playlist
   public function removeVideoFromPlaylist($playlist_id, $video_id) {
     $playlist = Playlist::find($playlist_id);
-    if (!auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
+    if ($playlist->user_id !== auth()->user()->id) {
       return accessDenied();
     }
     if (PlaylistVideo::where('playlist_id', $playlist_id)->where('video_id', $video_id)->delete()) {
