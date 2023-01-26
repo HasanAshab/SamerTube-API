@@ -15,6 +15,10 @@ class ReplyPolicy
     return $user->is_admin || $comment->video->visibility === "public" || $comment->video->channel_id === $user->id;
   }
   
+  public function read(User $user, Comment $comment){
+    return $comment->video->allow_comments && ($user->is_admin || $comment->video->visibility === "public" || $comment->video->channel_id === $user->id);
+  }
+  
   public function update(User $user, Reply $reply){
     return $user->id === $reply->replier_id;
   }
