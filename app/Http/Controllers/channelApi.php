@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\URL;
+use App\Rules\CSVRule;
 use Illuminate\Http\Request;
 use App\Models\Channel;
 use App\Models\Video;
@@ -41,28 +42,23 @@ class channelApi extends Controller
     $request->validate([
       'name' => 'bail|required|string|between:2,100',
       'description' => 'bail|required|string|max:500',
+      'tags' => ['bail', new CSVRule()],
       'logo' => 'image'
     ]);
     $id = $request->user()->id;
-    if ($request->file('logo') === null) {
-      $result = Channel::find($id)->update($request->all());
-      if ($result) {
-        return ['success' => true,
-          'message' => 'Channel successfully updated!'];
-      }
-      return response()->json([
-        'success' => false,
-        'message' => 'Failed to update channel!'
-      ], 451);
-    }
     $channel = Channel::find($id);
     $channel->name = $request->name;
     $channel->description = $request->description;
+    if($request->file('logo') !== null){
     if ($channel->logo_path !== null) {
       $this->clear($channel->logo_path);
     }
     $channel->logo_path = $this->upload($request->file('logo'));
     $channel->logo_url = URL::signedRoute('file.serve', ['type' => 'logo', 'id' => $id]);
+    }
+    if($request->tags !== null){
+      $channel->setTags(explode(',', $request->tags));
+    }
     $result = $channel->save();
     if ($result) {
       return ['success' => true,

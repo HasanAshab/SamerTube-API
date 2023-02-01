@@ -4,13 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SearchUtility;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use DB;
 
 class Playlist extends Model
 {
-  use HasFactory;
+  use HasFactory, SearchUtility;
   protected $appends = ['channel_name', 'thumbnail_url'];
+  protected $searchable = ['name'];
+  public static $rankable = [
+    'relevance' => [
+      ['total_videos', 'desc'],
+    ],
+  ];
   public function getNextId() {
     $statement = DB::select("show table status like 'playlists'");
     return $statement[0]->Auto_increment;

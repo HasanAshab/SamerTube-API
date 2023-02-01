@@ -5,6 +5,7 @@ use App\Http\Controllers\adminApi;
 use App\Http\Controllers\AuthApi;
 use App\Http\Controllers\channelApi;
 use App\Http\Controllers\videoApi;
+use App\Http\Controllers\SearchApi;
 use App\Http\Controllers\fileApi;
 use App\Http\Controllers\DashboardApi;
 use App\Jobs\PublishVideo;
@@ -65,7 +66,7 @@ Route::group([
 //Endpoints that accesseble without auth 
 Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
 Route::get('app/name', fn() => config('app.name'));
-Route::post('heart/{user_id}/{comment_id}/instantly', [videoApi::class, 'giveHeartInstantly'])->middleware(['signed', 'throttle:10,1'])->name('heart.instantly');
+Route::get('heart/{user_id}/{comment_id}/instantly', [videoApi::class, 'giveHeartInstantly'])->middleware(['signed', 'throttle:10,1'])->name('heart.instantly');
 
 // Endpoints for logged in users
 Route::group([
@@ -79,7 +80,7 @@ Route::group([
   Route::post('unsubscribe/{channel_id}/{video_id?}', [channelApi::class, 'unsubscribe']);
   Route::get('subscriptions', [channelApi::class, 'subscriptions']);
   //Route::post('video/upload', [videoApi::class, 'store']);
-  Route::get('explore', [videoApi::class, 'explore']);
+  Route::get('explore/{offset}/{limit}', [videoApi::class, 'explore']);
   Route::put('video/{id}', [videoApi::class, 'update']);
   Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::delete('video/{id}', [videoApi::class, 'destroy']);
@@ -87,8 +88,6 @@ Route::group([
   Route::get('notification', [videoApi::class, 'getNotifications']);
   Route::post('notification/hide/{notification_id}', [videoApi::class, 'hideNotification']);
   Route::get('categories', [videoApi::class, 'category']);
-  Route::get('suggestions/{query?}', [videoApi::class, 'suggestions']);
-  Route::get('search/{query?}', [videoApi::class, 'search']);
   Route::get('history', [videoApi::class, 'watchHistory']);
   Route::get('video/liked', [videoApi::class, 'getLikedVideos'])->name('videos.liked');
   Route::get('video/watch-later', [videoApi::class, 'getWatchLaterVideos'])->name('videos.watchLater');
@@ -119,6 +118,8 @@ Route::group([
   Route::post('watch-later/{video_id}', [videoApi::class, 'addVideoToWatchLater']);
   Route::delete('watch-later/{video_id}', [videoApi::class, 'removeVideoFromWatchLater']);
   Route::post('report/{id}', [videoApi::class, 'report']);
+  Route::get('search/{term?}', [SearchApi::class, 'search']);
+  Route::get('suggestions/{query?}', [SearchApi::class, 'suggestions']);
   Route::group([
     'prefix' => 'dashboard'
   ], function ($router) {
@@ -133,7 +134,17 @@ Route::group([
 });
 
 Route::post('video/upload', [videoApi::class, 'store']);
-Route::get('/test', function() {
-  $video = App\Models\Video::first();
-  PublishVideo::dispatch($video)->delay(now()->addMinutes(0.30));
+Route::get('/test/{q?}', function($q='') {
+  $arr = [
+    'a' => [
+      ['x', 'y'],
+    ],
+    'b' => [
+      ['p', 'q'],
+    ]
+    ];
+    foreach (array_keys($arr) as $key){
+      array_unshift($arr[$key], ['unm', 'asc']);
+    }
+  return $arr;
 });

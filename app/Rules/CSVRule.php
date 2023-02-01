@@ -25,7 +25,13 @@ class CSVRule implements Rule
      */
     public function passes($attribute, $value)
     {
-        return str_contains($value, ',');
+        $tags = explode(',', $value);
+        foreach ($tags as $tag){
+          if(strlen($tag) > 72){
+            return false;
+          }
+        }
+        return true;
     }
 
     /**

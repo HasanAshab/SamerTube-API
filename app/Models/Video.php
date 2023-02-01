@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\TagUtility;
+use App\Traits\SearchUtility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use DB;
@@ -10,7 +12,9 @@ use Carbon\Carbon;
 
 class Video extends Model
 {
-  use HasFactory;
+  use HasFactory, TagUtility, SearchUtility;
+  
+  public $morphable_type = 'App\Models\Video';
   
   protected $fillable = [
     'channel_id',
@@ -29,8 +33,44 @@ class Video extends Model
     'thumbnail_path',
     'updated_at',
     'watch_time',
-    'average_view_duration',
-    'tags'
+    'average_view_duration'
+  ];
+  
+  protected $searchable = [
+    'title',
+    'description'
+  ];
+  
+  public static $rankable = [
+    'relevance' => [
+      ['average_view_duration', 'desc'],
+      ['watch_time', 'desc'],
+      ['view_count', 'desc'],
+      ['comment_count', 'desc'],
+      ['like_count', 'desc'],
+    ],
+    'view' => [
+      ['view_count', 'desc'],
+      ['average_view_duration', 'desc'],
+      ['watch_time', 'desc'],
+      ['comment_count', 'desc'],
+      ['like_count', 'desc'],
+    ],
+    'date' => [
+      ['created_at', 'desc'],
+      ['average_view_duration', 'desc'],
+      ['watch_time', 'desc'],
+      ['view_count', 'desc'],
+      ['comment_count', 'desc'],
+      ['like_count', 'desc'],
+    ],
+    'rate' => [
+      ['like_count', 'desc'],
+      ['average_view_duration', 'desc'],
+      ['watch_time', 'desc'],
+      ['view_count', 'desc'],
+      ['comment_count', 'desc'],
+    ],
   ];
   
   public function getNextId() {
@@ -46,37 +86,10 @@ class Video extends Model
     return $this->hasMany(Comment::class, 'video_id')->join('channels', 'channels.id', '=', 'comments.commenter_id')->select('comments.*', 'channels.name', 'channels.logo_url');
   }
 
-  public function scopeRank($query, $sort = 'relevance', $date_range = 'anytime') {
-    if($sort === 'relevance'){
-      $query = $query->orderByDesc('average_view_duration')->orderByDesc('watch_time')->orderByDesc('view_count')->orderByDesc('comment_count')->orderByDesc('like_count')->orderByDesc('created_at')->orderByDesc('duration');
-    }
-    else if($sort === 'view'){
-      $query = $query->orderByDesc('view_count');
-    }
-    else if($sort === 'date'){
-      $query = $query->latest('created_at');
-    }
-    else if($sort === 'rate'){
-      $query = $query->orderByDesc('like_count');
-    }
-    $date_range === 'anytime' && $query;
-    $date_range === 'hour' && $query->whereBetween('created_at', [Carbon::now()->subHours(1), Carbon::now()]);
-    $date_range === 'day' && $query->where('created_at', 'like', Carbon::today()->toDateString().'%');
-    $date_range === 'week' && $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
-    $date_range === 'month' && $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()]);
-    $date_range === 'year' && $query->whereBetween('created_at', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()]);
-    return null;
-  }
-
   public function scopeChannel($query, $columns = []) {
     return $query->with(['channel' => fn($query2) => $query2->select(array_merge(['id'], $columns))]);
   }
 
-  protected function tags(): Attribute {
-    return new Attribute(
-      get: fn($value) => explode(',', $value),
-    );
-  }
   protected function duration(): Attribute {
     return new Attribute(
       get: fn($value) => $value<3600?gmdate("i:s", $value):gmdate("H:i:s", $value),

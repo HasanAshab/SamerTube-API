@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use App\Rules\CSVRule;
@@ -40,10 +38,13 @@ class videoApi extends Controller
   protected $maxDataPerRequest = 20;
 
   //Get all public videos
-  public function explore() {
-    return (auth()->user()->is_admin)
-    ?Video::rank()->channel(['name', 'logo_url'])->cursorPaginate($this->maxDataPerRequest)
-    :Video::rank()->where('visibility', 'public')->channel(['name', 'logo_url'])->rank()->cursorPaginate($this->maxDataPerRequest);
+  public function explore($offset, $limit) {
+    $video_query = Video::query();
+    if(!auth()->user()->is_admin){
+      $video_query->where('visibility', 'public');
+    }
+
+    return $video_query->rank()->channel(['name', 'logo_url'])->offset($offset)->limit($limit)->get();
   }
 
   // Save a new video
@@ -92,6 +93,7 @@ class videoApi extends Controller
           'channel_logo_url' => $video->channel->logo_url,
           'title' => $video->title,
           'description' => substr($video->description, 0, 50).'...',
+          'thumbnail_url' => $video->thumbnail_url,
           'link' => $video->link,
         ];
         $this->notify($subscribers_email, $data, $notification->type);
@@ -115,7 +117,7 @@ class videoApi extends Controller
       'publish_at' => 'date_format:Y-m-d H:i:s|after_or_equal:'.date(DATE_ATOM),
       'category_id' => 'bail|required|between:1,9',
       'allow_comments' => 'bail|required|in:0,1',
-      'tags' => ['bail', new CSVRule(), 'between:2,400'],
+      'tags' => ['bail', new CSVRule()],
       'thumbnail' => 'image'
     ]);
     $video = Video::find($id);
@@ -127,7 +129,7 @@ class videoApi extends Controller
     $video->visibility = $request->visibility;
     $video->category_id = $request->category_id;
     $video->allow_comments = $request->allow_comments;
-    $video->tags = $request->tags;
+    $video->setTags(explode(',', $request->tags));
     if ($request->file('thumbnail') !== null) {
       $this->clear($video->thumbnail_path);
       $video->thumbnail_path = $this->upload('thumbnails', $request->file('thumbnail'));
@@ -209,58 +211,7 @@ class videoApi extends Controller
   public function category() {
     return Category::all();
   }
-
-  // Get search suggestion
-  public function suggestions(Request $request, $query = null) {
-    $history = History::where('user_id', $request->user()->id)->where('history', 'like', $query.'%')->where('type', 'search')->limit(20)->get(['id', 'history']);
-    $suggestions = array();
-    foreach ($history as $title) {
-      array_push($suggestions, array('history' => true, 'id' => $title->id, 'suggestion' => $title->history));
-    }
-    if ($query === null) {
-      return $suggestions;
-    }
-    $titles = Video::when(!$request->user()->is_admin, function ($query) {
-      return $query->where('visibility', 'public');
-    })->where('title', 'like', $query.'%')->rank()->limit(10)->get('title');
-    foreach ($titles as $title) {
-      array_push($suggestions, array('history' => false, 'suggestion' => $title->title));
-    }
-    return $suggestions;
-  }
-
-  // Search from public videos
-  public function search(Request $request, $query = null) {
-    $request->validate([
-      'category_id' => 'exists:categories,id',
-      'sort' => 'bail|required|string|in:relevance,view,date,rating',
-      'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
-    ]);
-    if ($query === null) {
-      $videos = Video::when(!$request->user()->is_admin, function ($query) {
-        $query->where('visibility', 'public');
-      })->when($request->category_id !== null, function ($query) use($request) {
-        $query->where('category_id', $request->category_id);
-      })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-      return $videos;
-    }
-    $videos = Video::where('title', 'like', $query.'%')->when($request->user()->is_admin, function ($query) {
-      $query->where('visibility', 'public');
-    })->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-    $old_history = History::where('user_id', $request->user()->id)->where('type', 'search')->where('history', $query)->first();
-    if ($old_history !== null) {
-      $old_history->delete();
-    }
-    $history = new History;
-    $history->user_id = $request->user()->id;
-    $history->type = 'search';
-    $history->history = $query;
-    $history->save();
-    $videos = Video::where('visibility', 'public')->where('title', 'like', $query.'%')->channel(['name', 'logo_url'])->rank($request->sort, $request->date_range)->cursorPaginate($this->maxDataPerRequest);
-
-    return $videos;
-  }
-
+  
   //Get watch history
   public function watchHistory(Request $request) {
     $id = $request->user()->id;
