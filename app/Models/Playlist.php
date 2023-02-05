@@ -24,7 +24,7 @@ class Playlist extends Model
   }
   
   public function videos(){
-    return $this->hasMany(PlaylistVideo::class)->oldest();
+    return $this->belongsToMany(Video::class, 'playlist_videos')->oldest('playlist_videos.created_at');
   }
   
   protected function channelName(): Attribute {
@@ -37,5 +37,12 @@ class Playlist extends Model
     return new Attribute(
       get: fn() => PlaylistVideo::where('playlist_id', $this->id)->join('videos', 'videos.id', '=', 'playlist_videos.video_id')->select('videos.thumbnail_url')->value('thumbnail_url'),
     );
+  }
+  
+  public static function boot() {
+    parent::boot();
+    static::creating(function (Playlist $playlist) {
+      $playlist->user_id = auth()->id();
+    });
   }
 }

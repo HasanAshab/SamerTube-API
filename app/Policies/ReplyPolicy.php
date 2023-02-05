@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\Reply;
+use App\Models\Comment;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ReplyPolicy
@@ -12,11 +13,11 @@ class ReplyPolicy
   use HandlesAuthorization;
 
   public function create(User $user, Comment $comment){
-    return $user->is_admin || $comment->video->visibility === "public" || $comment->video->channel_id === $user->id;
+    return $user->is_admin || $comment->commentable->visibility === "public" || $comment->commentable->channel_id === $user->id;
   }
   
   public function read(User $user, Comment $comment){
-    return $comment->video->allow_comments && ($user->is_admin || $comment->video->visibility === "public" || $comment->video->channel_id === $user->id);
+    return $comment->commentable->allow_comments && ($user->is_admin || $comment->commentable->visibility === "public" || $comment->commentable->channel_id === $user->id);
   }
   
   public function update(User $user, Reply $reply){

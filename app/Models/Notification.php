@@ -9,9 +9,9 @@ use Carbon\Carbon;
 
 class Notification extends Model
 {
-    use HasFactory;
-    public $timestamps = false;
-    protected function createdAt(): Attribute{
+  use HasFactory;
+  public $timestamps = false;
+  protected function createdAt(): Attribute {
     return new Attribute(
       get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
     );

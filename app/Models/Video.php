@@ -5,16 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\TagUtility;
 use App\Traits\SearchUtility;
+use App\Traits\ReviewUtility;
+use App\Traits\CommentUtility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Builder;
 use DB;
 use Carbon\Carbon;
 
 class Video extends Model
 {
-  use HasFactory, TagUtility, SearchUtility;
-  
-  public $morphable_type = 'App\Models\Video';
+  use HasFactory, TagUtility, SearchUtility, ReviewUtility, CommentUtility;
   
   protected $fillable = [
     'channel_id',
@@ -78,16 +79,13 @@ class Video extends Model
     return $statement[0]->Auto_increment;
   }
 
-  public function channel() {
+  public function channel(){
     return $this->belongsTo(Channel::class);
   }
 
-  public function comments() {
-    return $this->hasMany(Comment::class, 'video_id')->join('channels', 'channels.id', '=', 'comments.commenter_id')->select('comments.*', 'channels.name', 'channels.logo_url');
-  }
-
-  public function scopeChannel($query, $columns = []) {
-    return $query->with(['channel' => fn($query2) => $query2->select(array_merge(['id'], $columns))]);
+  public function scopeChannel($query): Builder
+  {
+    return $query->join('channels', 'channels.id', 'videos.channel_id');
   }
 
   protected function duration(): Attribute {
@@ -100,5 +98,11 @@ class Video extends Model
       get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
     );
   }
-
+  
+  public static function boot() {
+    parent::boot();
+    static::creating(function (Video $video) {
+      $video->channel_id = auth()->id();
+    });
+  }
 }

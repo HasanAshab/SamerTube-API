@@ -27,9 +27,9 @@ class channelApi extends Controller
   }
 
   //Get any channel details
-  public function show(Request $request, $id) {
+  public function show($id) {
     $channel = Channel::find($id);
-    $is_author = ($request->user()->id === $channel->id);
+    $is_author = (auth()->id() === $channel->id);
     return [
       'success' => true,
       'author' => $is_author,
@@ -101,7 +101,6 @@ class channelApi extends Controller
     }
     $subscriber = new Subscriber;
     $subscriber->channel_id = $channel_id;
-    $subscriber->subscriber_id = $user_id;
     $subscriber->video_id = $video_id;
     $result = $subscriber->save();
     if ($result) {
@@ -157,9 +156,16 @@ class channelApi extends Controller
   // Get videos of a channel [no param for own videos]
   public function getChannelVideos(Request $request, $id = null) {
     $id = $id??$request->user()->id;
-    $videos = ($request->user()->is_admin || $request->user()->id === $id)
-    ?Video::where('channel_id', $id)->latest()->cursorPaginate($this->maxDataPerRequest)
-    :Video::where('channel_id', $id)->where('visibility', 'public')->latest()->cursorPaginate($this->maxDataPerRequest);
+    $video_query = ($request->user()->is_admin || $request->user()->id === $id)
+      ?Video::where('channel_id', $id)->latest()
+      :Video::where('channel_id', $id)->where('visibility', 'public')->latest();
+    if(isset($request->limit)){
+      $offset = isset($request->offset)
+        ?$request->offset
+        :0;
+      $video_query->offset($offset)->limit($request->limit);
+    }
+    $videos = $video_query->get();
     return [
       'success' => true,
       'videos' => $videos

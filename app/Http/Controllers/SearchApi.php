@@ -13,22 +13,23 @@ use DB;
 
 class SearchApi extends Controller
 {
-
-  protected $maxDataPerRequest = 10;
   
   // perform search of Video, Playlist and Channel
   public function search(Request $request, $term = '') {
     $request->validate([
       'category_id' => 'exists:categories,id',
-      'offset' => 'bail|required',
       'sort' => 'bail|required|string|in:relevance,view,date,rating',
       'type' => 'bail|required|string|in:all,video,channel,playlist',
       'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
     ]);
     History::updateOrCreate(
-      ['user_id' => auth()->id(), 'type' => 'search', 'history' => $term],
+      ['type' => 'search', 'history' => $term],
       ['created_at' => now()]
     );
+    
+    $offset = isset($request->offset)
+      ?$request->offset
+      :0;
     
     if ($request->type === 'all' || $request->type === 'video') {
       $video_query = Video::search($term, true, true)->date($request->date_range);
@@ -88,7 +89,11 @@ class SearchApi extends Controller
       $results = collect()->merge($videos)->merge($playlists)->merge($channels);
     }
     $results = $this->rank($results, $request->sort, $request->type);
-    return $results->slice($request->offset, $this->maxDataPerRequest)->values();
+    
+    if(isset($request->limit)){
+      return $results->slice($offset, $request->limit)->values();
+    }
+    return $results;
   }
 
   // Get search suggestion

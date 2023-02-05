@@ -33,13 +33,13 @@ trait SearchUtility
   }
   public function scopeWhereTagLike(Builder $query, $tagName): Builder
   {
-    $tagables_id = Tag::where('tagable_type', $this->morphable_type)->where('name', 'LIKE', '%'.$tagName.'%')->distinct('tagable_id')->pluck('tagable_id');
+    $tagables_id = Tag::where('tagable_type', get_class($this))->where('name', 'LIKE', '%'.$tagName.'%')->distinct('tagable_id')->pluck('tagable_id');
     return $query->whereIn('id', $tagables_id);
   }
   
   public function scopeOrWhereTagLike(Builder $query, $tagName): Builder
   {
-    $tagables_id = Tag::where('tagable_type', $this->morphable_type)->where('name', 'LIKE', '%'.$tagName.'%')->distinct('tagable_id')->pluck('tagable_id');
+    $tagables_id = Tag::where('tagable_type', get_class($this))->where('name', 'LIKE', '%'.$tagName.'%')->distinct('tagable_id')->pluck('tagable_id');
     return $query->orWhere(function ($query) use ($tagables_id){
       $query->whereIn('id', $tagables_id);
     });

@@ -5,15 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\ReviewUtility;
 use Carbon\Carbon;
 
 class Comment extends Model
 {
-  use HasFactory;
+  use HasFactory,
+  ReviewUtility;
   protected $appends = ['edited'];
   protected $hidden = ['updated_at'];
-  public function video() {
-    return $this->belongsTo(Video::class);
+  protected $fillable = [
+    'commenter_id',
+    'commentable_type',
+    'commentable_id',
+    'text'
+  ];
+  public function commentable() {
+    return $this->morphTo();
   }
 
   public function replies() {
@@ -25,16 +33,22 @@ class Comment extends Model
       get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
     );
   }
-  
+
   protected function updatedAt(): Attribute {
     return new Attribute(
       get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->diffForHumans(),
     );
   }
-  
+
   protected function edited(): Attribute {
     return new Attribute(
       get: fn() => $this->created_at !== $this->updated_at,
     );
+  }
+  public static function boot() {
+    parent::boot();
+    static::creating(function (Comment $comment) {
+      $comment->commenter_id = auth()->id();
+    });
   }
 }

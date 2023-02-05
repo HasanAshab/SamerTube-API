@@ -13,8 +13,6 @@ class Channel extends Model
 {
   use HasFactory, TagUtility, SearchUtility;
   
-  public $morphable_type = 'App\Models\Channel';
-  
   protected $fillable = [
     'name',
     'description',

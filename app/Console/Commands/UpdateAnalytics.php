@@ -47,11 +47,15 @@ class UpdateAnalytics extends Command
     $channels = Channel::all();
     $this->info('Analyzing channels...');
     foreach ($channels as $channel){
-      $total_views = Video::where('channel_id', $channel->id)->sum('view_count');
-      $total_watch_time = Video::where('channel_id', $channel->id)->sum('watch_time');
-      $channels->total_views = $total_views;
-      $channels->total_watch_time = $total_watch_time;
-      if ($video->save()){
+      $total_views = Video::where('channel_id', $channel->id)->where('visibility', 'public')->sum('view_count');
+      $total_watch_time = Video::where('channel_id', $channel->id)->where('visibility', 'public')->sum('watch_time');
+      $total_likes = Video::where('channel_id', $channel->id)->where('visibility', 'public')->sum('like_count');
+      $total_comments = Video::where('channel_id', $channel->id)->where('visibility', 'public')->sum('comment_count');
+      $channel->total_views = $total_views;
+      $channel->total_watch_time = $total_watch_time;
+      $channel->total_likes = $total_likes;
+      $channel->total_comments = $total_comments;
+      if ($channel->save()){
         $this->info('channel_id:'.$channel->id.' => total_watch_time:'.$total_watch_time.', total_views:'.$total_views);
       }
     }

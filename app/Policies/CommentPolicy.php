@@ -24,6 +24,6 @@ class CommentPolicy
   }
   
   public function delete(User $user, Comment $comment){
-    return $user->is_admin || $user->id === $comment->commenter_id || $comment->video->channel_id === $user->id;
+    return $user->is_admin || $user->id === $comment->commenter_id || $comment->commentable->channel_id === $user->id;
   }
 }

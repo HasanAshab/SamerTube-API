@@ -18,7 +18,8 @@ return new class extends Migration
             $table->unsignedBigInteger('commenter_id');
             $table->foreign('commenter_id')->references('id')->on('users')->onDelete('cascade');
             $table->string('text', 300);
-            $table->foreignId('video_id')->constrained()->onDelete('cascade');
+            $table->string('commentable_type');
+            $table->unsignedBigInteger('commentable_id');
             $table->integer('heart')->default(0);
             $table->integer('like_count')->default(0);
             $table->integer('dislike_count')->default(0);

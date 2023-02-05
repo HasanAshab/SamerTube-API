@@ -50,4 +50,8 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
     public function videos() {
       return $this->hasMany(Video::class, 'channel_id');
     }
+    
+    public function likedVideos() {
+      return $this->hasMany(Review::class, 'reviewer_id');
+    }
 }

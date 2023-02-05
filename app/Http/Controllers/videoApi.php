@@ -37,14 +37,20 @@ class videoApi extends Controller
   // Max data return per request [Pagination]
   protected $maxDataPerRequest = 20;
 
-  //Get all public videos
-  public function explore($offset, $limit) {
+  // Get all public videos
+  public function explore(Request $request) {
     $video_query = Video::query();
-    if(!auth()->user()->is_admin){
+    if (!auth()->user()->is_admin) {
       $video_query->where('visibility', 'public');
     }
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $video_query->offset($offset)->limit($request->limit);
+    }
 
-    return $video_query->rank()->channel(['name', 'logo_url'])->offset($offset)->limit($limit)->get();
+    return $video_query->rank()->channel()->select('videos.*', 'channels.name', 'channels.logo_url')->get();
   }
 
   // Save a new video
@@ -59,7 +65,6 @@ class videoApi extends Controller
       'thumbnail' => 'bail|required|image'
     ]);
     $video = new Video;
-    $video->channel_id = $request->uploader_id; //user()->id;
     $video->title = $request->title;
     $video->description = $request->description;
     $video->category_id = $request->category_id;
@@ -152,7 +157,7 @@ class videoApi extends Controller
 
   // Get details of a video to watch
   public function watch(Request $request, $id) {
-    $video = Video::where('id', $id)->channel(['name', 'logo_url', 'total_subscribers'])->first();
+    $video = Video::where('id', $id)->channel()->select('videos.*', 'channels.name', 'channels.logo_url', 'channels.total_subscribers')->first();
     if (!$request->user()->can('watch', [Video::class, $video])) {
       return accessDenied();
     }
@@ -161,7 +166,6 @@ class videoApi extends Controller
       $old_history->delete();
     }
     $history = new History;
-    $history->user_id = $request->user()->id;
     $history->type = 'video';
     $history->history = $id;
     $history->save();
@@ -178,7 +182,6 @@ class videoApi extends Controller
       $result = $view->save();
     } else {
       $view = new View;
-      $view->user_id = auth()->user()->id;
       $view->video_id = $id;
       $view->view_duration = $time;
       $result = $view->save() && Video::find($id)->increment('view_count', 1);
@@ -211,29 +214,42 @@ class videoApi extends Controller
   public function category() {
     return Category::all();
   }
-  
+
   //Get watch history
   public function watchHistory(Request $request) {
     $id = $request->user()->id;
-    $dates = History::where('user_id', $id)->where('type', 'video')->select(DB::raw('DATE(created_at) as date'))->distinct('date')->latest()->pluck('date');
+    $date_query = History::where('user_id', $id)->where('type', 'video')->select(DB::raw('DATE(created_at) as date'))->distinct('date')->latest();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $date_query->offset($offset)->limit($request->limit);
+    }
+    $dates = $date_query->pluck('date');
     $histories = collect();
     foreach ($dates as $date) {
       $videos = History::whereDate('histories.created_at', $date)->where('type', 'video')->where('user_id', $id)->join('videos', 'videos.id', '=', 'histories.history')->join('channels', 'channels.id', 'videos.channel_id')->select('history', 'channels.name', 'videos.title', DB::raw('TIME_FORMAT(SEC_TO_TIME(videos.duration), "%i:%s") AS duration'), 'videos.thumbnail_url')->get();
-      $histories->push(['date' => $this->parse_date($date), 'videos' => $videos]);
+      $histories->push(['date' => $date, 'videos' => $videos]);
     }
     return $histories;
   }
 
   // Get liked videos
-  public function getLikedVideos() {
-    $liked_videos_id = Review::where('reviewer_id', auth()->user()->id)->where('review', 1)->pluck('video_id');
-    return Video::whereIn('id', $liked_videos_id)->where('video_id', 'public')->channel(['name'])->get();
+  public function getLikedVideos(Request $request) {
+    return Video::liked($request->limit, $request->offset);
   }
 
   // Get watch later videos
-  public function getWatchLaterVideos() {
-    $watch_later_videos_id = WatchLater::where('user_id', auth()->user()->id)->pluck('video_id');
-    return Video::whereIn('id', $watch_later_videos_id)->channel(['name'])->get();
+  public function getWatchLaterVideos(Request $request) {
+    $watch_later_query = WatchLater::where('user_id', auth()->user()->id);
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $watch_later_query->offset($offset)->limit($request->limit);
+    }
+    $watch_later_videos_id = $watch_later_query->pluck('video_id');
+    return Video::whereIn('id', $watch_later_videos_id)->channel()->select('videos.*', 'channels.name')->get();
   }
 
   // Like and dislike on a video
@@ -243,29 +259,17 @@ class videoApi extends Controller
     ]);
     $video = Video::find($video_id);
 
-    if ($video->visibility !== "public" && $video->channel_id !== $reviewer_id) {
+    if ($video->visibility !== "public" && $video->channel_id !== auth()->id()) {
       return accessDenied();
     }
-    $reviewer_id = $request->user()->id;
-    $old_review = Review::where('video_id', $video_id)->where('reviewer_id', $reviewer_id)->first();
-    if ($old_review !== null) {
-      if ($old_review->review === $request->review) {
-        $result = $old_review->delete();
-      } else {
-        $old_review->review = $request->review;
-        $result = $old_review->save();
-      }
-    } else {
-      $review = new Review;
-      $review->reviewer_id = $reviewer_id;
-      $review->video_id = $video_id;
-      $review->review = $request->review;
-      $result = $review->save();
+    $reviewed = $video->reviewed();
+    if ($reviewed === $request->review) {
+      $video->unreview();
+      return ['success' => true];
     }
+
+    $result = $video->review($request->review);
     if ($result) {
-      $video->like_count = Review::where([['video_id', $video_id], ['review', 1]])->count();
-      $video->dislike_count = Review::where([['video_id', $video_id], ['review', 0]])->count();
-      $video->save();
       return ['success' => true];
     }
     return response()->json(['success' => false], 451);
@@ -273,12 +277,7 @@ class videoApi extends Controller
 
   // Get what is the review of user
   public function getReview(Request $request, $video_id) {
-    $review = Review::where('video_id', $video_id)->where('reviewer_id', $request->user()->id);
-    if ($review === null) {
-      return ['success' => true,
-        'review' => null];
-    }
-    $review_code = $review->value('review');
+    $review_code = Video::find($video_id)->reviewed();
     return ['success' => true,
       'review' => $review_code];
   }
@@ -293,14 +292,8 @@ class videoApi extends Controller
     if (!$request->user()->can('create', [Comment::class, $video])) {
       return accessDenied();
     }
-    $comment = new Comment;
-    $comment->commenter_id = $commenter_id;
-    $comment->text = $request->text;
-    $comment->video_id = $video_id;
-    $result = $comment->save();
-    if ($result) {
-      $video->increment('comment_count', 1);
-      $video->channel->increment('total_comments', 1);
+    $comment = $video->comment($request->text);
+    if ($comment) {
       if ($video->channel_id !== $commenter_id) {
         $text = $request->user()->channel->name." commented: &quot;".$comment->text."&quot;";
         $notification = new Notification;
@@ -317,7 +310,6 @@ class videoApi extends Controller
           'commenter_name' => $request->user()->channel->name,
           'commenter_logo_url' => $request->user()->channel->logo_url,
           'text' => $comment->text,
-          'heart_url' => URL::signedRoute('heart.instantly', ['user_id' => $video->channel_id, 'comment_id' => $comment->id]),
           'link' => $notification->url
         ];
         $uploader_email = User::find($video->channel_id)->email;
@@ -334,9 +326,16 @@ class videoApi extends Controller
     if (!$request->user()->can('read', [Comment::class, $video])) {
       return accessDenied();
     }
-    $comments = $video->comments;
+    $comment_query = $video->comments();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $comment_query->offset($offset)->limit($request->limit);
+    }
+    $comments = $comment_query->get();
     foreach ($comments as $comment) {
-      $comment->review = CommentReview::where([['comment_id', $comment->id], ['reviewer_id', $request->user()->id]])->value('review');
+      $comment->review = $comment->reviewed();
       $comment->author = ($comment->commenter_id === $video->channel_id);
     }
     return $comments;
@@ -348,9 +347,17 @@ class videoApi extends Controller
     if (!$request->user()->can('read', [Comment::class, $video])) {
       return accessDenied();
     }
-    $comments = $video->comments;
+    $comment_query = $video->comments();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $comment_query->offset($offset)->limit($request->limit);
+    }
+    $comments = $comment_query->get();
+
     foreach ($comments as $comment) {
-      $comment->review = CommentReview::where([['comment_id', $comment->id], ['reviewer_id', $request->user()->id]])->value('review');
+      $comment->review = $comment->reviewed();
       $comment->highlight = ($comment->id == $comment_id);
       $comment->author = ($comment->commenter_id === $video->channel_id);
     }
@@ -362,7 +369,7 @@ class videoApi extends Controller
     ];
   }
 
-  // Update comment of a video
+  // Update comment
   public function updateComment(Request $request, $comment_id) {
     $request->validate([
       'text' => 'bail|required|string|max:300'
@@ -386,8 +393,7 @@ class videoApi extends Controller
     if ($request->user()->can('delete', [Comment::class, $comment])) {
       $result = $comment->delete();
       if ($result) {
-        $comment->video->decrement('comment_count', 1);
-        $comment->video->channel->decrement('total_comments', 1);
+        $comment->commentable->decrement('comment_count', 1);
         return ['success' => true,
           'message' => 'Comment successfully deleted!'];
       }
@@ -410,27 +416,15 @@ class videoApi extends Controller
     if ($comment->video->visibility !== "public" && $comment->video->channel_id !== $reviewer_id) {
       return accessDenied();
     }
-    $review = CommentReview::where([['comment_id', $comment_id], ['reviewer_id', $reviewer_id]])->first();
-    if ($review !== null) {
-      if ($review->review === $request->review) {
-        $review->review = null;
-        $result = $review->delete();
-      } else {
-        $review->review = $request->review;
-        $result = $review->save();
-      }
-    } else {
-      $review = new CommentReview;
-      $review->reviewer_id = $reviewer_id;
-      $review->comment_id = $comment_id;
-      $review->review = $request->review;
-      $result = $review->save();
+
+    if ($comment->reviewed() === $request->review) {
+      $comment->unreview();
+      return ['success' => true];
     }
+
+    $result = $comment->review($request->review);
     if ($result) {
-      $comment->like_count = CommentReview::where([['comment_id', $comment_id], ['review', 1]])->count();
-      $comment->dislike_count = CommentReview::where([['comment_id', $comment_id], ['review', 0]])->count();
-      $comment->save();
-      if ($request->review === 1 && $review->review !== null && $comment->commenter_id !== $reviewer_id) {
+      if ($comment->reviewed() === 1 && $comment->commenter_id !== $reviewer_id) {
         $text = "👍 Someone liked your commented: &quot;".$comment->text."&quot;";
         $notification = new Notification;
         $notification->from = $reviewer_id;
@@ -468,7 +462,6 @@ class videoApi extends Controller
       return accessDenied();
     }
     $reply = new Reply;
-    $reply->replier_id = $replier_id;
     $reply->text = $request->text;
     $reply->comment_id = $comment_id;
     $result = $reply->save();
@@ -507,10 +500,17 @@ class videoApi extends Controller
     if (!$request->user()->can('read', [Reply::class, $comment])) {
       return accessDenied();
     }
-    $replies = $comment->replies;
+    $reply_query = $comment->replies();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $reply_query->offset($offset)->limit($request->limit);
+    }
+    $replies = $reply_query->get();
     foreach ($replies as $reply) {
-      $reply->review = ReplyReview::where([['reply_id', $reply->id], ['reviewer_id', $request->user()->id]])->value('review');
-      $reply->author = ($reply->replier_id === $comment->video->channel_id);
+      $reply->review = $reply->reviewed();
+      $reply->author = ($reply->replier_id === $comment->commentable->channel_id);
     }
     return $replies;
   }
@@ -518,11 +518,18 @@ class videoApi extends Controller
   // Get all Replies of a comment with 1 highlighted one. for notification view
   public function getRepliesWithHighlighted(Request $request, $comment_id, $reply_id) {
     $comment = Comment::find($comment_id);
-    $replies = $comment->replies;
-    foreach ($replies as $reply) {
-      $reply->review = ReplyReview::where([['reply_id', $reply->id], ['reviewer_id', $request->user()->id]])->value('review');
+    $reply_query = $comment->replies();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $reply_query->offset($offset)->limit($request->limit);
+    }
+    $replies = $reply_query->get();
+     foreach ($replies as $reply) {
+      $reply->review = $reply->reviewed();
       $reply->highlight = ($reply->id == $reply_id);
-      $reply->author = ($reply->replier_id === $comment->video->channel_id);
+      $reply->author = ($reply->replier_id === $comment->commentable->channel_id);
     }
     return [
       'heading' => "Replies on &quot;".$comment->text."&quot;",
@@ -581,27 +588,14 @@ class videoApi extends Controller
     if ($reply->video->visibility !== "public" && $reply->video->channel_id !== $reviewer_id) {
       return accessDenied();
     }
-    $review = ReplyReview::where('reply_id', $reply_id)->where('reviewer_id', $reviewer_id)->first();
-    if ($review !== null) {
-      if ($review->review === $request->review) {
-        $review->review = null;
-        $result = $review->delete();
-      } else {
-        $review->review = $request->review;
-        $result = $review->save();
-      }
-    } else {
-      $review = new ReplyReview;
-      $review->reviewer_id = $reviewer_id;
-      $review->reply_id = $reply_id;
-      $review->review = $request->review;
-      $result = $review->save();
+    if ($reply->reviewed() === $reply->review) {
+      $reply->unreview();
+      return ['success' => true];
     }
+    $result = $reply->review($request->review);
+
     if ($result) {
-      $reply->like_count = ReplyReview::where([['reply_id', $reply_id], ['review', 1]])->count();
-      $reply->dislike_count = ReplyReview::where([['reply_id', $reply_id], ['review', 0]])->count();
-      $reply->save();
-      if ($request->review === 1 && $review->review !== null && $reply->replier_id !== $reviewer_id) {
+      if ($reply->reviewed() === 1 && $reply->replier_id !== $reviewer_id) {
         $text = "👍 Someone liked your commented: &quot;".$reply->text."&quot;";
         $notification = new Notification;
         $notification->from = $reviewer_id;
@@ -633,10 +627,10 @@ class videoApi extends Controller
     $comment = ($type == "comment")
     ?Comment::find($id)
     :Reply::find($id);
-    if ($comment->video->channel_id !== $user_id) {
+    if ($comment->commentable->channel_id !== $user_id) {
       return accessDenied();
     }
-    $comment->heart = intval(!$comment->heart);
+    $comment->heart = (int)!$comment->heart;
     $result = $comment->save();
     if ($result) {
       if ($comment->heart) {
@@ -652,58 +646,28 @@ class videoApi extends Controller
         :URL::signedRoute('replies.highlighted', ['comment_id' => $comment_id, 'reply_id' => $id]);
         $notification->type = "heart";
         $notification->text = $text;
-        $notification->logo_url = $comment->video->channel->logo_url;
+        $notification->logo_url = $comment->commentable->channel->logo_url;
         $notification->save();
         $commenter = User::find($notification->for);
         $data = [
-          'subject' => str_replace('&quot;', '"', $text),
+          'subject' => str_replace('&quot;',
+            '"',
+            $text),
           'name' => $channel->name,
           'logo_url' => $channel->logo_url,
           'text' => $comment->text,
           'link' => $notification->url,
         ];
-        $this->notify($commenter->email, $data, $notification->type);
+        $this->notify($commenter->email,
+          $data,
+          $notification->type);
       }
       return ['success' => true];
     }
     return response()->json(['success' => false],
       451);
   }
-  // Give heart instantly from mail without authenticate
-  public function giveHeartInstantly($user_id, $comment_id){
-    $comment = Comment::find($comment_id);
-    if ($comment->video->channel_id !== (int)$user_id) {
-      return accessDenied();
-    }
-    $comment->heart = intval(!$comment->heart);
-    $result = $comment->save();
-    if ($result) {
-      if ($comment->heart) {
-        $channel = Channel::find($user_id);
-        $text = "Your comment got a ❤️ from ".$channel->name."!";
-        $notification = new Notification;
-        $notification->from = $user_id;
-        $notification->for = $comment->commenter_id;
-        $notification->url = URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $comment_id]);
-        $notification->type = "heart";
-        $notification->text = $text;
-        $notification->logo_url = $comment->video->channel->logo_url;
-        $notification->save();
-        $commenter = User::find($notification->for);
-        $data = [
-          'subject' => $text,
-          'name' => $channel->name,
-          'logo_url' => $channel->logo_url,
-          'text' => $comment->text,
-          'link' => $notification->url,
-        ];
-        $this->notify($commenter->email, $data, $notification->type);
-      }
-      return ['success' => true];
-    }
-    return response()->json(['success' => false],
-      451);
-  }
+
   // Get all notifications of a user
   public function getNotifications(Request $request) {
     $id = $request->user()->id;
@@ -711,20 +675,24 @@ class videoApi extends Controller
       $id)->pluck('channel_id');
     $hidden_notifications_id = Hidden::where('user_id',
       $id)->pluck('notification_id');
-    $notifications = Notification::where(function ($query) use ($subscriptions_id) {
+    $notification_query = Notification::where(function ($query) use ($subscriptions_id) {
       $query->where('type', 'video')->whereIn('from', $subscriptions_id);
     })->orWhere(function ($query) use ($id) {
       $query->whereIn('type', ['comment', 'reply', 'heart', 'subscribe', 'like'])->where('for', $id);
     })->whereNotIn('id',
-      $hidden_notifications_id)->latest()->limit(40)->get();
-    return $notifications;
+      $hidden_notifications_id)->latest();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $notification_query->offset($offset)->limit($request->limit);
+    }
+    return $notification_query->get();
   }
 
   // Hide a Notification
-  public function hideNotification(Request $request,
-    $notification_id) {
+  public function hideNotification(Request $request, $notification_id) {
     $hidden = new Hidden;
-    $hidden->user_id = $request->user()->id;
     $hidden->notification_id = $notification_id;
     $result = $hidden->save();
     if ($result) {
@@ -787,7 +755,6 @@ class videoApi extends Controller
       'visibility' => 'bail|required|in:public,private',
     ]);
     $playlist = new Playlist;
-    $playlist->user_id = $request->user()->id;
     $playlist->name = $request->name;
     $playlist->description = $request->description;
     $playlist->visibility = $request->visibility;
@@ -863,7 +830,6 @@ class videoApi extends Controller
       ], 406);
     }
     $saved_playlist = new SavedPlaylist;
-    $saved_playlist->user_id = auth()->user()->id;
     $saved_playlist->playlist_id = $id;
     if ($saved_playlist->save()) {
       return [
@@ -960,7 +926,6 @@ class videoApi extends Controller
       ], 451);
     }
     $watch_later = new WatchLater;
-    $watch_later->user_id = auth()->user()->id;
     $watch_later->video_id = $video_id;
     if ($watch_later->save()) {
       return [
@@ -1001,14 +966,14 @@ class videoApi extends Controller
     if ($playlist->visibility !== "public" && !auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
       return accessDenied();
     }
-    $playlist_videos = array();
-    foreach ($playlist->videos as $playlist_video) {
-      $video = Video::where('id', $playlist_video->video_id)->channel(['name'])->first();
-      if ($video->visibility === 'public') {
-        array_push($playlist_videos, $video);
-      }
+    $videos = collect();
+    $playlist_video_query = $playlist->videos();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)?$request->offset:0;
+      $playlist_video_query->offset($offset)->limit($request->limit);
     }
-    return $playlist_videos;
+    $videos = $playlist_video_query->where('visibility', 'public')->channel()->select('videos.*', 'channels.name')->get();
+    return $videos;
   }
 
   // Report any content material
@@ -1019,7 +984,6 @@ class videoApi extends Controller
     ]);
 
     $report = new Report;
-    $report->user_id = $request->user()->id;
     $report->type = $request->type;
     $report->for = $id;
     $report->reason = $request->reason;

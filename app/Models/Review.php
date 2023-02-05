@@ -7,5 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class Review extends Model
 {
-    use HasFactory;
+  use HasFactory;
+  protected $fillable = [
+    'reviewer_id',
+    'reviewable_type',
+    'reviewable_id',
+    'review'
+  ];
+  public function reviewable() {
+    return $this->morphTo();
+  }
+
+  public static function boot() {
+    parent::boot();
+    static::creating(function (Review $review) {
+      $review->reviewer_id = auth()->id();
+    });
+  }
 }

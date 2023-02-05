@@ -17,19 +17,25 @@ Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middlewa
 // Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
-  'middleware' => ['api', 'auth:sanctum', 'throttle:4,1']
+  'middleware' => ['api', 'throttle:4,1']
 ], function ($router) {
-  Route::post('register', [AuthApi::class, 'register'])->withoutMiddleware(['auth:sanctum']);
-  Route::post('login', [AuthApi::class, 'login'])->withoutMiddleware(['auth:sanctum']);
-  Route::get('google', [AuthApi::class, 'googleRedirect'])->withoutMiddleware(['auth:sanctum']);
-  Route::get('google/callback', [AuthApi::class, 'loginWithGoogle'])->withoutMiddleware(['auth:sanctum']);
-  Route::post('change-password', [AuthApi::class, 'changePassword']);
-  Route::post('forgot-password', [AuthApi::class, 'sentForgotPasswordLink'])->withoutMiddleware(['auth:sanctum']);
-  Route::post('reset-password', [AuthApi::class, 'resetPassword'])->withoutMiddleware(['auth:sanctum']);
-  Route::post('logout', [AuthApi::class, 'logout']);
-  Route::post('logout-all', [AuthApi::class, 'logoutAllDevices']);
-  Route::post('refresh', [AuthApi::class, 'refresh']);
-  Route::delete('delete', [AuthApi::class, 'destroy']);
+  Route::post('register', [AuthApi::class, 'register']);
+  Route::post('login', [AuthApi::class, 'login']);
+  Route::get('google', [AuthApi::class, 'googleRedirect']);
+  Route::get('google/callback', [AuthApi::class, 'loginWithGoogle']);
+  Route::post('forgot-password', [AuthApi::class, 'sentForgotPasswordLink']);
+  Route::post('reset-password', [AuthApi::class, 'resetPassword']);
+  Route::group([
+    'middleware' => 'auth:sanctum'
+  ], function ($router) {
+    Route::get('profile', [AuthApi::class, 'profile']);
+    Route::get('is-admin', [AuthApi::class, 'isAdmin']);
+    Route::post('change-password', [AuthApi::class, 'changePassword']);
+    Route::post('logout', [AuthApi::class, 'logout']);
+    Route::post('logout-all', [AuthApi::class, 'logoutAllDevices']);
+    Route::post('refresh', [AuthApi::class, 'refresh']);
+    Route::delete('delete', [AuthApi::class, 'destroy']);
+  });
 });
 
 // Endpoints for Admin services
@@ -58,15 +64,14 @@ Route::group([
     Route::get('channels', [adminApi::class, 'getChannels']);
     Route::get('reports/{type}', [adminApi::class, 'getReports']);
     Route::get('reports/{type}/{id}', [adminApi::class, 'getContentReports']);
-    Route::get('reports/{type}/top/{limit}', [adminApi::class, 'getTopReportedContent']);
+    Route::get('reports/{type}/top', [adminApi::class, 'getTopReportedContent']);
     Route::get('admins', [adminApi::class, 'getAdmins']);
   });
 });
 
-//Endpoints that accesseble without auth 
+//Endpoints that accesseble without auth
 Route::get('file/{type}/{id?}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
 Route::get('app/name', fn() => config('app.name'));
-Route::get('heart/{user_id}/{comment_id}/instantly', [videoApi::class, 'giveHeartInstantly'])->middleware(['signed', 'throttle:10,1'])->name('heart.instantly');
 
 // Endpoints for logged in users
 Route::group([
@@ -80,7 +85,7 @@ Route::group([
   Route::post('unsubscribe/{channel_id}/{video_id?}', [channelApi::class, 'unsubscribe']);
   Route::get('subscriptions', [channelApi::class, 'subscriptions']);
   //Route::post('video/upload', [videoApi::class, 'store']);
-  Route::get('explore/{offset}/{limit}', [videoApi::class, 'explore']);
+  Route::get('explore', [videoApi::class, 'explore']);
   Route::put('video/{id}', [videoApi::class, 'update']);
   Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::delete('video/{id}', [videoApi::class, 'destroy']);
@@ -134,17 +139,7 @@ Route::group([
 });
 
 Route::post('video/upload', [videoApi::class, 'store']);
-Route::get('/test/{q?}', function($q='') {
-  $arr = [
-    'a' => [
-      ['x', 'y'],
-    ],
-    'b' => [
-      ['p', 'q'],
-    ]
-    ];
-    foreach (array_keys($arr) as $key){
-      array_unshift($arr[$key], ['unm', 'asc']);
-    }
-  return $arr;
+Route::get('/test/{q?}', function($q = '') {
+  return App\Models\Video::first()->tags;
+  return App\Models\Video::first()->setTags(explode(',', $q));
 });

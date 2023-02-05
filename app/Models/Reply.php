@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\ReviewUtility;
 use Carbon\Carbon;
 
 class Reply extends Model
 {
-  use HasFactory;
+  use HasFactory, ReviewUtility;
   use \Znck\Eloquent\Traits\BelongsToThrough;
 
   protected $appends = ['edited'];
@@ -39,5 +40,12 @@ class Reply extends Model
     return new Attribute(
       get: fn() => $this->created_at !== $this->updated_at,
     );
+  }
+  
+  public static function boot() {
+    parent::boot();
+    static::creating(function (Reply $reply) {
+      $reply->replier_id = auth()->id();
+    });
   }
 }

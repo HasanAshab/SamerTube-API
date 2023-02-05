@@ -12,4 +12,11 @@ class View extends Model
   public function video(){
     return $this->belongsTo(Video::class);
   }
+  
+  public static function boot() {
+    parent::boot();
+    static::creating(function (View $view) {
+      $view->user_id = auth()->id();
+    });
+  }
 }

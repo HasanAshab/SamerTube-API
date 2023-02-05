@@ -165,13 +165,21 @@ class AuthApi extends Controller
     }
     return response()->json(['success' => false, 'message' => 'Failed to change password!']);
   }
+  public function profile(){
+    return auth()->user();
+  }
+  
+  public function isAdmin(){
+    return auth()->user()->is_admin;
+  }
+  
   // Create new token
   public function refresh(Request $request) {
     $user = $request->user();
     if ($user->currentAccessToken()->delete()) {
       $token = ($user->is_admin)
-      ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
-      :$user->createToken("API TOKEN", ['user'])->plainTextToken;
+        ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
+        :$user->createToken("API TOKEN", ['user'])->plainTextToken;
       return [
         'success' => true,
         'access_token' => $token

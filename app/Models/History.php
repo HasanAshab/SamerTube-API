@@ -16,6 +16,11 @@ class History extends Model
   function video() {
     return $this->hasOne(Video::class, 'id', 'history');
   }
-
+  public static function boot() {
+    parent::boot();
+    static::creating(function (History $history) {
+      $history->user_id = auth()->id();
+    });
+  }
   
 }
