@@ -28,7 +28,7 @@ trait FileUtility {
     $urls = [];
     $fileId = File::getNextId();
     foreach ($files as $name => $file) {
-      $file_name = time().'_'.$file->getClientOriginalName();
+      $file_name = $this->generateName($file);
       $path = $file->storeAs("uploads", $file_name, 'public');
       $fileable_id = ($model_created)
       ?$this->id
@@ -47,7 +47,7 @@ trait FileUtility {
   }
 
   public function attachFile($name, $file, $model_created = false) {
-    $file_name = time().'_'.$file->getClientOriginalName();
+    $file_name = $this->generateName($file);
     $path = $file->storeAs("uploads", $file_name, 'public');
     $fileable_id = ($model_created)
     ?$this->id
@@ -61,6 +61,10 @@ trait FileUtility {
       'link' => $url,
     ]);
     return $url;
+  }
+
+  public function generateName($file){
+    return time().'_'.$file->hashName();
   }
 
   public function removeFiles($name) {
