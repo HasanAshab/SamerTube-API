@@ -13,12 +13,12 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('images', function (Blueprint $table) {
+        Schema::create('votes', function (Blueprint $table) {
             $table->id();
-            $table->integer('imageable_id');
-            $table->string('imageable_type');
-            $table->string('path');
-            $table->timestamps();
+            $table->unsignedBigInteger('voter_id');
+            $table->foreignId('post_id')->constrained()->onDelete('cascade');
+            $table->foreignId('poll_id')->constrained()->onDelete('cascade');
+            $table->foreign('voter_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('images');
+        Schema::dropIfExists('votes');
     }
 };

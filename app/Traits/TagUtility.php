@@ -6,10 +6,6 @@ use App\Models\Tag;
 trait TagUtility{
   
   public static function bootTagUtility() {
-    static::creating(function ($model) {
-      $model->tagable_id = $this->id;
-      $model->tagable_type = get_class($model);
-    });
     static::deleting(function ($model) {
       $model->tags()->delete();
     });
@@ -18,6 +14,7 @@ trait TagUtility{
   public function tags(){
     return $this->morphMany(Tag::class, 'tagable');
   }
+  
   
   public function setTags($tagNames){
     $this->tags()->delete();

@@ -17,7 +17,6 @@ return new class extends Migration
             $table->id();
             $table->string('name', 20);
             $table->string('country', 20);
-            $table->string('logo_path')->nullable();
             $table->string('logo_url');
             $table->string('description', 500)->default('');
             $table->decimal('total_watch_time')->default(0);
@@ -26,6 +25,7 @@ return new class extends Migration
             $table->integer('total_likes')->default(0);
             $table->integer('total_comments')->default(0);
             $table->integer('total_subscribers')->default(0);
+            $table->boolean('post_unlocked')->default(false);
             $table->timestamps();
         });
     }

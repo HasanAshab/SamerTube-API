@@ -17,7 +17,9 @@
     <input type="text" placeholder="visibility" name="visibility">
     <input type="file" name="video" accept=".hh">
     <input type="file" name="thumbnail" accept="image/*">
-    <!--
+    
+     <!--
+   
     @method('PUT')
     <input type="text" placeholder="name" name="name">
     <input type="text" placeholder="description" name="description">

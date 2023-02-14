@@ -5,12 +5,13 @@ use Illuminate\Support\Facades\URL;
 use App\Rules\CSVRule;
 use App\Models\User;
 use App\Models\Video;
+use App\Models\Post;
+use App\Models\Poll;
+use App\Models\Vote;
 use App\Models\View;
 use App\Models\Category;
 use App\Models\History;
 use App\Models\Review;
-use App\Models\CommentReview;
-use App\Models\ReplyReview;
 use App\Models\Channel;
 use App\Models\Comment;
 use App\Models\Reply;
@@ -25,6 +26,7 @@ use App\Models\Report;
 use DB;
 use Carbon\Carbon;
 use App\Jobs\PublishVideo;
+use App\Jobs\PublishPost;
 use App\Mail\VideoUploadedMail;
 use App\Mail\CommentedMail;
 use App\Mail\RepliedMail;
@@ -34,9 +36,6 @@ use Mail;
 
 class videoApi extends Controller
 {
-  // Max data return per request [Pagination]
-  protected $maxDataPerRequest = 20;
-
   // Get all public videos
   public function explore(Request $request) {
     $video_query = Video::query();
@@ -49,8 +48,7 @@ class videoApi extends Controller
       :0;
       $video_query->offset($offset)->limit($request->limit);
     }
-
-    return $video_query->rank()->channel()->select('videos.*', 'channels.name', 'channels.logo_url')->get();
+    return $video_query->rank()->channel()->select('videos.*', 'channels.name')->get();
   }
 
   // Save a new video
@@ -73,10 +71,12 @@ class videoApi extends Controller
     require_once(storage_path('getID3/getid3/getid3.php'));
     $getID3 = new \getID3;
     $video->duration = $getID3->analyze($request->file('video'))['playtime_seconds'];
-    $video->video_path = $this->upload('videos', $request->file('video'));
-    $video->thumbnail_path = $this->upload('thumbnails', $request->file('thumbnail'));
-    $video->video_url = URL::signedRoute('file.serve', ['type' => 'video', 'id' => $video->getNextId()]);
-    $video->thumbnail_url = URL::signedRoute('file.serve', ['type' => 'thumbnail', 'id' => $video->getNextId()]);
+    $urls = $video->attachFiles([
+      'video' => $request->file('video'),
+      'thumbnail' => $request->file('thumbnail')
+    ]);
+    $video->video_url = $urls->video;
+    $video->thumbnail_url = $urls->thumbnail;
     $result = $video->save();
     if ($result) {
       if ($video->visibility === 'public') {
@@ -108,8 +108,8 @@ class videoApi extends Controller
       return ['success' => $result,
         'message' => 'Video successfully uploaded!'];
     }
-    return ['success' => $result,
-      'message' => 'Failed to upload video!'];
+    return response()->json(['success' => $result,
+      'message' => 'Failed to upload video!'], 451);
 
   }
 
@@ -127,7 +127,7 @@ class videoApi extends Controller
     ]);
     $video = Video::find($id);
     if (!$request->user()->can('update', [Video::class, $video])) {
-      return accessDenied();
+      abort(405);
     }
     $video->title = $request->title;
     $video->description = $request->description;
@@ -136,11 +136,10 @@ class videoApi extends Controller
     $video->allow_comments = $request->allow_comments;
     $video->setTags(explode(',', $request->tags));
     if ($request->file('thumbnail') !== null) {
-      $this->clear($video->thumbnail_path);
-      $video->thumbnail_path = $this->upload('thumbnails', $request->file('thumbnail'));
+      $video->removeFiles('thumbnail');
+      $video->thumbnail_url = $video->attachFile('thumbnail', $request->file('thumbnail'), true);
     }
     $result = $video->save();
-
     if ($result) {
       if ($video->visibility === 'scheduled') {
         PublishVideo::dispatch($video, false)->delay($request->publish_at);
@@ -159,7 +158,7 @@ class videoApi extends Controller
   public function watch(Request $request, $id) {
     $video = Video::where('id', $id)->channel()->select('videos.*', 'channels.name', 'channels.logo_url', 'channels.total_subscribers')->first();
     if (!$request->user()->can('watch', [Video::class, $video])) {
-      return accessDenied();
+      abort(405);
     }
     $old_history = History::where('user_id', $request->user()->id)->where('type', 'video')->where('history', $id)->first();
     if ($old_history !== null) {
@@ -194,7 +193,7 @@ class videoApi extends Controller
   public function destroy($id) {
     $video = Video::find($id);
     if (!$request->user()->can('delete', [Video::class, $video])) {
-      return accessDenied();
+      abort(405);
     }
     $r3 = $video->delete();
     $r1 = $this->clear($video->video_path);
@@ -253,14 +252,14 @@ class videoApi extends Controller
   }
 
   // Like and dislike on a video
-  public function postReview(Request $request, $video_id) {
+  public function review(Request $request, $video_id) {
     $request->validate([
       'review' => 'bail|required|in:0,1'
     ]);
     $video = Video::find($video_id);
 
-    if ($video->visibility !== "public" && $video->channel_id !== auth()->id()) {
-      return accessDenied();
+    if (!$request->user()->can('review', [Video::class, $video])) {
+      abort(405);
     }
     $reviewed = $video->reviewed();
     if ($reviewed === $request->review) {
@@ -282,15 +281,15 @@ class videoApi extends Controller
       'review' => $review_code];
   }
 
-  // Post comment on a video
-  public function postComment(Request $request, $video_id) {
+  // Create comment on a video
+  public function createComment(Request $request, $video_id) {
     $request->validate([
       'text' => 'bail|required|string|max:300'
     ]);
     $commenter_id = $request->user()->id;
     $video = Video::find($video_id);
-    if (!$request->user()->can('create', [Comment::class, $video])) {
-      return accessDenied();
+    if (!$request->user()->can('createComment', [Video::class, $video])) {
+      abort(405);
     }
     $comment = $video->comment($request->text);
     if ($comment) {
@@ -323,8 +322,8 @@ class videoApi extends Controller
   // Get all comments of a specific video
   public function getComments(Request $request, $video_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->can('read', [Comment::class, $video])) {
-      return accessDenied();
+    if (!$request->user()->can('readComments', [Video::class, $video])) {
+      abort(405);
     }
     $comment_query = $video->comments();
     if (isset($request->limit)) {
@@ -344,8 +343,8 @@ class videoApi extends Controller
   // Get all comments of a video with 1 highlighted one. for notification view
   public function getCommentsWithHighlighted(Request $request, $video_id, $comment_id) {
     $video = Video::find($video_id);
-    if (!$request->user()->can('read', [Comment::class, $video])) {
-      return accessDenied();
+    if (!$request->user()->can('readComments', [Video::class, $video])) {
+      abort(405);
     }
     $comment_query = $video->comments();
     if (isset($request->limit)) {
@@ -375,8 +374,8 @@ class videoApi extends Controller
       'text' => 'bail|required|string|max:300'
     ]);
     $comment = Comment::find($comment_id);
-    if (!$request->user()->can('update', [Comment::class, $comment])) {
-      return accessDenied();
+    if (!$request->user()->can('updateComment', [Video::class, $comment])) {
+      abort(405);
     }
     $comment->text = $request->text;
     $result = $comment->save();
@@ -390,7 +389,7 @@ class videoApi extends Controller
   public function removeComment(Request $request, $comment_id) {
     $comment = Comment::find($comment_id);
     $user_id = $request->user()->id;
-    if ($request->user()->can('delete', [Comment::class, $comment])) {
+    if ($request->user()->can('deleteComment', [Video::class, $comment])) {
       $result = $comment->delete();
       if ($result) {
         $comment->commentable->decrement('comment_count', 1);
@@ -402,11 +401,11 @@ class videoApi extends Controller
         'message' => 'Failed to delete comment!'
       ], 451);
     }
-    return accessDenied();
+    abort(405);
   }
 
   // Like or Dislike a comment
-  public function postCommentReview(Request $request, $comment_id) {
+  public function reviewComment(Request $request, $comment_id) {
     $request->validate([
       'review' => 'bail|required|in:0,1'
     ]);
@@ -414,7 +413,7 @@ class videoApi extends Controller
 
     $reviewer_id = $request->user()->id;
     if ($comment->video->visibility !== "public" && $comment->video->channel_id !== $reviewer_id) {
-      return accessDenied();
+      abort(405);
     }
 
     if ($comment->reviewed() === $request->review) {
@@ -449,8 +448,8 @@ class videoApi extends Controller
     return response()->json(['success' => false], 451);
   }
 
-  // Post reply on a comment
-  public function postReply(Request $request, $comment_id) {
+  // Create reply on a comment
+  public function createReply(Request $request, $comment_id) {
     $request->validate([
       'text' => 'bail|required|string|max:300'
     ]);
@@ -459,7 +458,7 @@ class videoApi extends Controller
     $comment = Comment::find($comment_id);
 
     if (!$request->user()->can('create', [Reply::class, $comment])) {
-      return accessDenied();
+      abort(405);
     }
     $reply = new Reply;
     $reply->text = $request->text;
@@ -498,7 +497,7 @@ class videoApi extends Controller
     $comment = Comment::find($comment_id);
 
     if (!$request->user()->can('read', [Reply::class, $comment])) {
-      return accessDenied();
+      abort(405);
     }
     $reply_query = $comment->replies();
     if (isset($request->limit)) {
@@ -526,7 +525,7 @@ class videoApi extends Controller
       $reply_query->offset($offset)->limit($request->limit);
     }
     $replies = $reply_query->get();
-     foreach ($replies as $reply) {
+    foreach ($replies as $reply) {
       $reply->review = $reply->reviewed();
       $reply->highlight = ($reply->id == $reply_id);
       $reply->author = ($reply->replier_id === $comment->commentable->channel_id);
@@ -547,7 +546,7 @@ class videoApi extends Controller
     $reply = Reply::find($reply_id);
 
     if (!$request->user()->can('update', [Reply::class, $reply])) {
-      return accessDenied();
+      abort(405);
     }
     $reply->text = $request->text;
     $result = $comment->save();
@@ -574,11 +573,11 @@ class videoApi extends Controller
         'message' => 'Failed to delete reply!'
       ], 451);
     }
-    return accessDenied();
+    abort(405);
   }
 
-  // Like or Dislike a comment
-  public function postReplyReview(Request $request, $reply_id) {
+  // Like or Dislike a Reply
+  public function reviewReply(Request $request, $reply_id) {
     $request->validate([
       'review' => 'bail|required|in:0,1'
     ]);
@@ -586,7 +585,7 @@ class videoApi extends Controller
 
     $reviewer_id = $request->user()->id;
     if ($reply->video->visibility !== "public" && $reply->video->channel_id !== $reviewer_id) {
-      return accessDenied();
+      abort(405);
     }
     if ($reply->reviewed() === $reply->review) {
       $reply->unreview();
@@ -628,7 +627,7 @@ class videoApi extends Controller
     ?Comment::find($id)
     :Reply::find($id);
     if ($comment->commentable->channel_id !== $user_id) {
-      return accessDenied();
+      abort(405);
     }
     $comment->heart = (int)!$comment->heart;
     $result = $comment->save();
@@ -720,7 +719,7 @@ class videoApi extends Controller
         'message' => 'Failed to delete history!'
       ], 451);
     }
-    return accessDenied();
+    abort(405);
   }
 
   // Get a users saved, created and liked videos Playlist
@@ -778,7 +777,7 @@ class videoApi extends Controller
     ]);
     $playlist = Playlist::find($id);
     if ($playlist->user_id !== $request->user()->id) {
-      return accessDenied();
+      abort(405);
     }
     $playlist->name = $request->name;
     $playlist->description = $request->description;
@@ -797,7 +796,7 @@ class videoApi extends Controller
   public function removePlaylist($id) {
     $playlist = Playlist::find($id);
     if (!auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
-      return accessDenied();
+      abort(405);
     }
     if ($playlist->delete()) {
       return [
@@ -821,7 +820,7 @@ class videoApi extends Controller
     }
     $playlist = Playlist::find($id);
     if ($playlist->visibility === "private" && !auth()->user()->is_admin) {
-      return accessDenied();
+      abort(405);
     }
     if ($playlist->user_id === auth()->user()->id) {
       return response()->json([
@@ -868,7 +867,7 @@ class videoApi extends Controller
     }
     $playlist = Playlist::find($playlist_id);
     if ($playlist->user_id !== auth()->user()->id) {
-      return accessDenied();
+      abort(405);
     }
     $playlist_video_exists = PlaylistVideo::where('playlist_id', $playlist_id)->where('video_id', $video_id)->exists();
     if ($playlist_video_exists) {
@@ -895,7 +894,7 @@ class videoApi extends Controller
   public function removeVideoFromPlaylist($playlist_id, $video_id) {
     $playlist = Playlist::find($playlist_id);
     if ($playlist->user_id !== auth()->user()->id) {
-      return accessDenied();
+      abort(405);
     }
     if (PlaylistVideo::where('playlist_id', $playlist_id)->where('video_id', $video_id)->delete()) {
       $playlist->decrement('total_videos', 1);
@@ -964,7 +963,7 @@ class videoApi extends Controller
   public function getPlaylistVideos($id) {
     $playlist = Playlist::find($id);
     if ($playlist->visibility !== "public" && !auth()->user()->is_admin && $playlist->user_id !== auth()->user()->id) {
-      return accessDenied();
+      abort(405);
     }
     $videos = collect();
     $playlist_video_query = $playlist->videos();
@@ -977,7 +976,7 @@ class videoApi extends Controller
   }
 
   // Report any content material
-  protected function report(Request $request, $id) {
+  public function report(Request $request, $id) {
     $request->validate([
       'type' => 'required|in:image_or_title,video,user,comment,reply',
       'reason' => 'required|string|between:10,100'
@@ -999,19 +998,204 @@ class videoApi extends Controller
     ], 451);
   }
 
-  // Save a uploaded file to server storage
-  protected function upload($path, $file) {
-    $file_extention = $file->extension();
-    $file_name = time().$file->getClientOriginalName();
-    return $file->storeAs("uploads/$path", $file_name, 'public');
+  // Create a Community Post
+  public function createPost(Request $request) {
+    $request->validate([
+      'content' => 'bail|required|string',
+      'visibility' => 'bail|required|in:public,scheduled',
+      'publish_at' => 'date_format:Y-m-d H:i:s|after_or_equal:'.date(DATE_ATOM),
+      'type' => 'bail|required|in:text,text_poll,image_poll,shared',
+      'shared_id' => 'bail|exists:posts,id',
+      'polls' => 'array|min:2|max:5',
+      'images' => 'array|min:1|max:5',
+      'poll_images' => 'array|min:2|max:5',
+    ]);
+    if (!$request->user()->can('create', [Post::class])) {
+      abort(405);
+    }
+    if ($request->type === 'text_poll') {
+      $post = Post::create($request->merge(['total_votes' => 0])->only(['content', 'visibility', 'type', 'total_votes']));
+      $pollsData = [];
+      foreach ($request->polls as $pollName) {
+        $pollData = [
+          'post_id' => $post->id,
+          'name' => $pollName
+        ];
+        array_push($pollsData, $pollData);
+      }
+      Poll::insert($pollsData);
+    } else if ($request->type === 'image_poll') {
+      $post = Post::create($request->merge(['total_votes' => 0])->only(['content', 'visibility', 'type', 'total_votes']));
+      $pollsData = [];
+      for ($i = 0; $i < count($request->polls); $i++) {
+        $poll = new Poll;
+        $poll->post_id = $post->id;
+        $poll->name = $request->polls[$i];
+        $poll->image_url = $poll->attachFile('poll_image-'.$i, $request->poll_images[$i]);
+        $poll->save();
+      }
+    } else if ($request->type === 'text') {
+      $post = Post::create($request->only(['content', 'visibility', 'type']));
+      if (isset($request->images)) {
+        $imageUrls = $post->attachFiles($request->images, true);
+      }
+    } else if ($request->type === 'shared') {
+      $post = Post::create($request->only(['content', 'visibility', 'type', 'shared_id']));
+    }
+
+    if ($post) {
+      if ($post->visibility === 'scheduled') {
+        PublishPost::dispatch($post, true)->delay($request->publish_at);
+      }
+      return ['success' => true,
+        'message' => 'Post successfully created!'];
+    }
+    return response()->json(['success' => $result,
+      'message' => 'Failed to create post!'], 451);
   }
 
-  // Clear Outdated files from server storage
-  protected function clear($path) {
-    return unlink(storage_path("app/public/$path"));
+  // Update a Community Post
+  public function updatePost(Request $request, $id) {
+    $validated = $request->validate([
+      'content' => 'bail|required|string'
+    ]);
+    $post = Post::find($id);
+    if (!$request->user()->can('update', [Post::class, $post])) {
+      abort(405);
+    }
+    $result = $post->update($validated);
+    if ($result) {
+      return ['success' => true,
+        'message' => 'Post successfully updated!'];
+    }
+    return response()->json(['success' => $result,
+      'message' => 'Failed to update post!'], 451);
   }
 
+  // Delete a Community Post
+  public function deletePost($id) {
+    $post = Post::find($id);
+    if (!auth()->user()->can('delete', [Post::class, $post])) {
+      abort(405);
+    }
+    $result = $post->delete();
+    if ($result) {
+      return ['success' => true,
+        'message' => 'Post successfully updated!'];
+    }
+    return response()->json(['success' => $result,
+      'message' => 'Failed to update post!'], 451);
+  }
 
+  // Like and dislike on a Community Post
+  public function reviewPost(Request $request, $id) {
+    $request->validate([
+      'review' => 'bail|required|in:0,1'
+    ]);
+    $post = Post::find($id);
+    if (!$request->user()->can('review', [Post::class, $post])) {
+      abort(405);
+    }
+    $reviewed = $post->reviewed();
+    if ($reviewed === $request->review) {
+      $post->unreview();
+      return ['success' => true];
+    }
+    $result = $post->review($request->review);
+    if ($result) {
+      return ['success' => true];
+    }
+    return response()->json(['success' => false], 451);
+  }
+
+  // Get what is the review of user on a post
+  public function getPostReview(Request $request, $id) {
+    $review_code = Post::find($id)->reviewed();
+    return ['success' => true,
+      'review' => $review_code];
+  }
+
+  // Create comment on a Community Post
+  public function createPostComment(Request $request, $id) {
+    $request->validate([
+      'text' => 'bail|required|string|max:300'
+    ]);
+    $commenter_id = $request->user()->id;
+    $post = Post::find($id);
+    if (!$request->user()->can('comment', [Post::class, $post])) {
+      abort(405);
+    }
+    $comment = $post->comment($request->text);
+    if ($comment) {
+      if ($post->channel_id !== $commenter_id) {
+        //notification
+      }
+      return ['success' => true];
+    }
+    return response()->json(['success' => false], 451);
+  }
+
+  // Get all comments of a specific post
+  public function getPostComments(Request $request, $id) {
+    $post = Post::find($id);
+    if (!$request->user()->can('readComments', [Post::class, $post])) {
+      abort(405);
+    }
+    $comment_query = $post->comments();
+    if (isset($request->limit)) {
+      $offset = isset($request->offset)
+      ?$request->offset
+      :0;
+      $comment_query->offset($offset)->limit($request->limit);
+    }
+    $comments = $comment_query->get();
+    foreach ($comments as $comment) {
+      $comment->review = $comment->reviewed();
+      $comment->author = ($comment->commenter_id === $post->channel_id);
+    }
+    return $comments;
+  }
+
+  // Vote a poll
+  public function votePoll($id) {
+    $poll = Poll::find($id);
+    $post = $poll->post;
+    if (!auth()->user()->can('vote', [Post::class, $post])) {
+      abort(405);
+    }
+    $voted_poll = $this->getVotedPoll($post->id);
+    if (is_null($voted_poll)) {
+      $vote = Vote::create([
+        'poll_id' => $id,
+        'post_id' => $post->id,
+      ]);
+      $poll->increment('vote_count', 1);
+      $post->increment('total_votes', 1);
+    }
+    else {
+     Vote::where('voter_id', auth()->id())->where('post_id', $post->id)->delete();
+      if ($voted_poll->id !== $id) {
+        $vote = Vote::create([
+          'poll_id' => $id,
+          'post_id' => $post->id,
+        ]);
+        $voted_poll->decrement('vote_count', 1);
+        $poll->increment('vote_count', 1);
+      }
+      else{
+        $voted_poll->decrement('vote_count', 1);
+        $post->decrement('total_votes', 1);
+      }
+    }
+    return is_null($vote)
+      ?response()->json(['success' => false], 451)
+      :['success' => true];
+  }
+
+  // Get which poll user is voted of a post
+  protected function getVotedPoll($id) {
+    return Vote::where('voter_id', auth()->id())->where('post_id', $id)->first();
+  }
   // Sent notification to user
   protected function notify($emails, $data, $type) {
     if ($type === 'video') {

@@ -13,13 +13,12 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('admins', function (Blueprint $table) {
+        Schema::create('polls', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 20);
-            $table->string('email')->unique();
-            $table->string('password', 300);
-            $table->rememberToken();
-            $table->timestamps();
+            $table->foreignId('post_id')->constrained()->onDelete('cascade');
+            $table->string('name');
+            $table->integer('vote_count')->default(0);
+            $table->string('image_url')->nullable();
         });
     }
 
@@ -30,6 +29,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('admins');
+        Schema::dropIfExists('polls');
     }
 };

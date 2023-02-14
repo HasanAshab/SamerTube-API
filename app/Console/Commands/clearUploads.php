@@ -26,19 +26,12 @@ class clearUploads extends Command
   * @return int
   */
   public function handle() {
-    $this->clearDir(storage_path('app/public/uploads/videos'));
-
-    $this->clearDir(storage_path('app/public/uploads/thumbnails'));
-
-      return Command::SUCCESS;
-    }
-    
-  protected function clearDir($path){
-    $files = array_diff(scandir($path), array('.', '..'));
+    $files = glob(storage_path('app/public/uploads').'/*'); // get all file names
     foreach ($files as $file) {
-        unlink($path.'/'.$file);
+        unlink($file);
       $this->info("Clearing file: $file");
     }
-    
-  }
+      return Command::SUCCESS;
+    }
+  
   }

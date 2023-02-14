@@ -20,7 +20,6 @@ return new class extends Migration
             $table->foreignId('channel_id')->constrained()->onDelete('cascade');
             $table->unsignedBigInteger('video_id')->nullable();
             $table->integer('status')->default(1);
-            $table->timestamps();
             $table->softDeletes();
         });
     }

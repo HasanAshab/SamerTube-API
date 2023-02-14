@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class Hidden extends Model
 {
   use HasFactory;
+  protected $timestamps = false;
+
 
   public static function boot() {
     parent::boot();

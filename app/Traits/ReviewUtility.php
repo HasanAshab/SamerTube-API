@@ -30,7 +30,6 @@ trait ReviewUtility {
 
   public function review($review_code) {
     $user_id = auth()->id();
-    
     $review = Review::updateOrCreate(
       ['reviewable_type' => get_class($this), 'reviewable_id' => $this->id],
       ['review' => $review_code]

@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Subscriber extends Model
 {
-  use HasFactory,
-  SoftDeletes;
+  use HasFactory, SoftDeletes;
+  protected $timestamps = false;
+
   protected $fillable = [
     'subscriber_id',
     'channel_id',

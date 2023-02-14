@@ -7,6 +7,7 @@ use App\Rules\CSVRule;
 use Illuminate\Http\Request;
 use App\Models\Channel;
 use App\Models\Video;
+use App\Models\Post;
 use App\Models\Subscriber;
 use App\Models\Notification;
 use App\Mail\SubscribedMail;
@@ -14,8 +15,6 @@ use Mail;
 
 class channelApi extends Controller
 {
-
-  protected $maxDataPerRequest = 20;
 
   //Get own channel details
   public function index(Request $request) {
@@ -50,11 +49,9 @@ class channelApi extends Controller
     $channel->name = $request->name;
     $channel->description = $request->description;
     if($request->file('logo') !== null){
-    if ($channel->logo_path !== null) {
-      $this->clear($channel->logo_path);
-    }
-    $channel->logo_path = $this->upload($request->file('logo'));
-    $channel->logo_url = URL::signedRoute('file.serve', ['type' => 'logo', 'id' => $id]);
+    $channel->removeFiles('logo');
+    $logo_url = $channel->attachFile('logo', $request->file('logo'), true);
+    $channel->logo_url = $logo_url;
     }
     if($request->tags !== null){
       $channel->setTags(explode(',', $request->tags));
@@ -74,10 +71,7 @@ class channelApi extends Controller
   public function subscribe($channel_id, $video_id = null) {
     $user_id = auth()->user()->id;
     if ($channel_id == $user_id) {
-      return response()->json([
-        'success' => false,
-        'message' => 'You haven\'t permition to subscribe or unsubscribe your own channel!'
-      ], 406);
+      abort(405);
     }
     if (Subscriber::where('channel_id', $channel_id)->where('subscriber_id', $user_id)->exists()) {
       return response()->json([
@@ -170,6 +164,25 @@ class channelApi extends Controller
       'success' => true,
       'videos' => $videos
     ];
+  } 
+  
+  // Get posts of a channel [no param for own posts]
+  public function getChannelPosts(Request $request, $id = null) {
+    $id = $id??$request->user()->id;
+    $post_query = ($request->user()->is_admin || $request->user()->id === $id)
+      ?Post::with('polls')->where('channel_id', $id)->latest()
+      :Post::with('polls')->where('channel_id', $id)->where('visibility', 'public')->latest();
+    if(isset($request->limit)){
+      $offset = isset($request->offset)
+        ?$request->offset
+        :0;
+      $post_query->offset($offset)->limit($request->limit);
+    }
+    $posts = $post_query->get();
+    return [
+      'success' => true,
+      'posts' => $posts
+    ];
   }
 
   // Get all Subscribed channel id and name
@@ -177,17 +190,5 @@ class channelApi extends Controller
     $id = $request->user()->id;
     $subscriptions = Subscriber::where('subscriber_id', $id)->join('channels', 'channels.id', '=', 'subscribers.channel_id')->orderByDesc('total_subscribers')->get(['channel_id', 'name', 'logo_url']);
     return $subscriptions;
-  }
-
-  // Save a uploaded file to server storage
-  protected function upload($file) {
-    $file_extention = $file->extension();
-    $file_name = time().$file->getClientOriginalName();
-    return $file->storeAs("uploads/logo", $file_name, 'public');
-  }
-
-  // Clear Unimportant files from server storage
-  protected function clear($path) {
-    return unlink(storage_path("app/public/$path"));
   }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
+use Closure;
 
 class Authenticate extends Middleware
 {
@@ -12,4 +13,11 @@ class Authenticate extends Middleware
      * @param  \Illuminate\Http\Request  $request
      * @return string|null
      */
+   public function handle($request, Closure $next, ...$guard){
+    //check here if the user is authenticated
+    if (!$this->auth->user()){
+      abort(401);
+    }
+    return $next($request);
+   }
 }

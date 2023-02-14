@@ -7,15 +7,15 @@ use App\Traits\TagUtility;
 use App\Traits\SearchUtility;
 use App\Traits\ReviewUtility;
 use App\Traits\CommentUtility;
+use App\Traits\FileUtility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Builder;
-use DB;
 use Carbon\Carbon;
 
 class Video extends Model
 {
-  use HasFactory, TagUtility, SearchUtility, ReviewUtility, CommentUtility;
+  use HasFactory, TagUtility, SearchUtility, ReviewUtility, CommentUtility, FileUtility;
   
   protected $fillable = [
     'channel_id',
@@ -73,11 +73,6 @@ class Video extends Model
       ['comment_count', 'desc'],
     ],
   ];
-  
-  public function getNextId() {
-    $statement = DB::select("show table status like 'videos'");
-    return $statement[0]->Auto_increment;
-  }
 
   public function channel(){
     return $this->belongsTo(Channel::class);

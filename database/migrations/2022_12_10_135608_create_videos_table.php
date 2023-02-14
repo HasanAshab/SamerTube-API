@@ -19,9 +19,7 @@ return new class extends Migration
             $table->string('title', 72);
             $table->string('description', 300);
             $table->integer('duration');
-            $table->string('video_path');
             $table->string('video_url');
-            $table->string('thumbnail_path');
             $table->string('thumbnail_url');
             $table->string('link');
             $table->foreignId('category_id')->constrained()->onDelete('cascade');

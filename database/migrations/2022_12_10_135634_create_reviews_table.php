@@ -20,7 +20,6 @@ return new class extends Migration
             $table->unsignedBigInteger('reviewer_id');
             $table->integer('review');
             $table->foreign('reviewer_id')->references('id')->on('users')->onDelete('cascade');
-            $table->timestamps();
         });
     }
 

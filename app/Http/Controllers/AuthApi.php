@@ -34,8 +34,6 @@ class AuthApi extends Controller
     ]);
     $channel = Channel::create([
       'name' => $request->name,
-      'logo_path' => 'assets/user_logo.png',
-      'logo_url' => URL::signedRoute('file.serve', ['type' => 'logo', 'id' => $user->id]),
       'country' => 'Bangladesh'//Location::get($request->ip())->countryName);
     ]);
     if ($user && $channel) {

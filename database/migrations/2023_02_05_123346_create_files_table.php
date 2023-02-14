@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Carbon\Carbon;
 
 return new class extends Migration
 {
@@ -14,11 +13,13 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('views', function (Blueprint $table) {
+        Schema::create('files', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('video_id')->constrained()->onDelete('cascade');
-            $table->float('view_duration');
+            $table->string('name');
+            $table->integer('fileable_id');
+            $table->string('fileable_type');
+            $table->string('path');
+            $table->string('link');
         });
     }
 
@@ -29,6 +30,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('views');
+        Schema::dropIfExists('files');
     }
 };

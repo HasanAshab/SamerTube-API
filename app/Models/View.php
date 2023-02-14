@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 class View extends Model
 {
   use HasFactory;
-  
+  protected $timestamps = false;
+
   public function video(){
     return $this->belongsTo(Video::class);
   }

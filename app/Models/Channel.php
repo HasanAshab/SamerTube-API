@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\TagUtility;
 use App\Traits\SearchUtility;
+use App\Traits\FileUtility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
 class Channel extends Model
 {
-  use HasFactory, TagUtility, SearchUtility;
+  use HasFactory, TagUtility, SearchUtility, FileUtility;
   
   protected $fillable = [
     'name',

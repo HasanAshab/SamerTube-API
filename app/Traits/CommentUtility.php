@@ -15,8 +15,6 @@ trait CommentUtility {
   }
 
   public function comment($text) {
-    $user_id = auth()->id();
-
     $comment = Comment::create([
       'commentable_type' => get_class($this),
       'commentable_id' => $this->id,
