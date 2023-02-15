@@ -155,7 +155,7 @@ test('User can see his all post', function() {
   $response->assertStatus(200);
 });
 
-test('User can see others public posts only', function() {
+test('User can\'t see others scheduled post', function() {
   Post::factory()->createQuietly([
     'channel_id' => $this->creator->id,
     'visibility' => 'scheduled'
@@ -164,7 +164,7 @@ test('User can see others public posts only', function() {
   $response->assertStatus(200);
   $response->assertJson([
     'success' => true,
-    'posts' => []
+    'data' => []
   ]);
 });
 
@@ -178,7 +178,7 @@ test('Admin can see others scheduled posts', function() {
   $response->assertStatus(200);
   $response->assertJson([
     'success' => true,
-    'posts' => [$post->toArray()]
+    'data' => [$post->toArray()]
   ]);
 });
 
@@ -199,7 +199,7 @@ test('Post total votes resolved as rate and User can see which poll they are vot
   $response->assertStatus(200);
   $response->assertJsonStructure([
     'success',
-    'posts' => [
+    'data' => [
       '*' => [
         'id',
         'channel_id',
@@ -309,7 +309,7 @@ test('User can review others public post', function() {
   $response = $this->actingAs($this->user)->postJson('/api/review/post/'.$post->id, $data);
   $review = Review::first();
   $this->assertEquals($review->review, 1);
-  $response->assertStatus(200);
+  $response->assertStatus(204);
 });
 
 test('User can\'t review others scheduled post', function() {
@@ -331,7 +331,7 @@ test('User can review his scheduled post', function() {
   $response = $this->actingAs($this->creator)->postJson('/api/review/post/'.$post->id, $data);
   $review = Review::first();
   $this->assertEquals($review->review, 1);
-  $response->assertStatus(200);
+  $response->assertStatus(204);
 });
 
 test('Admin can review others scheduled post', function() {
@@ -343,7 +343,7 @@ test('Admin can review others scheduled post', function() {
   $response = $this->actingAs($this->admin)->postJson('/api/review/post/'.$post->id, $data);
   $review = Review::first();
   $this->assertEquals($review->review, 1);
-  $response->assertStatus(200);
+  $response->assertStatus(204);
 });
 
 test('User can\'t review shared post', function() {
@@ -372,7 +372,9 @@ test('User can see their review on a post', function () {
   $response->assertStatus(200);
   $response->assertJson([
     'success' => true,
+    'data' => [
     'review' => 1
+    ]
   ]);
 });
 
@@ -386,8 +388,7 @@ test('User can comment on public post', function() {
     'text' => 'This is a test comment'
   ];
   $response = $this->actingAs($this->user)->postJson('/api/comment/post/'.$post->id, $data);
-  $response->assertStatus(200);
-  $response->assertJson(['success' => true]);
+  $response->assertStatus(204);
 });
 
 test('User can\'t comment on others scheduled post', function() {
@@ -413,9 +414,7 @@ test('User can comment on their scheduled post', function() {
     'text' => 'This is a test comment'
   ];
   $response = $this->actingAs($this->creator)->postJson('/api/comment/post/'.$post->id, $data);
-  $response->assertStatus(200);
-  $response->assertJson(['success' => true]);
-
+  $response->assertStatus(204);
 });
 
 test('Admin can comment on others scheduled post', function() {
@@ -428,9 +427,7 @@ test('Admin can comment on others scheduled post', function() {
     'text' => 'This is a test comment'
   ];
   $response = $this->actingAs($this->admin)->postJson('/api/comment/post/'.$post->id, $data);
-  $response->assertStatus(200);
-  $response->assertJson(['success' => true]);
-
+  $response->assertStatus(204);
 });
 
 test('User can\'t comment on shared post', function() {
@@ -535,8 +532,7 @@ test('User can vote poll on others public post', function () {
     'post_id' => $post->id
   ]);
   $response = $this->actingAs($this->user)->postJson('/api/vote/'.$polls->first()->id);
-  $response->assertStatus(200);
-  $response->assertJson(['success' => true]);
+  $response->assertStatus(204);
 });
 
 test('User can\'t vote poll on others scheduled post', function () {
@@ -562,9 +558,7 @@ test('Admin can vote poll on others scheduled post', function () {
     'post_id' => $post->id
   ]);
   $response = $this->actingAs($this->admin)->postJson('/api/vote/'.$polls->first()->id);
-  $response->assertStatus(200);
-  $response->assertJson(['success' => true]);
-
+  $response->assertStatus(204);
 });
 
 test('User can\'t vote multiple polls on same post', function () {

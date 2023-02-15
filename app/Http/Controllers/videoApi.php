@@ -41,7 +41,7 @@ class videoApi extends Controller
   public function explore(Request $request) {
     $video_query = Video::with(['channel' => function ($query){
       return $query->select('id', 'name', 'logo_url');
-    });
+    }]);
     if (!(auth()->check() || auth()->user()->is_admin)) {
       $video_query->where('visibility', 'public');
     }
@@ -249,7 +249,7 @@ class videoApi extends Controller
     $watch_later_videos_id = $watch_later_query->pluck('video_id');
     $videos = Video::with(['channel' => function ($query){
       return $query->select('id', 'name');
-    })->whereIn('id', $watch_later_videos_id)->get();
+    }])->whereIn('id', $watch_later_videos_id)->get();
     return $videos;
   }
 
@@ -975,7 +975,7 @@ class videoApi extends Controller
     }
     $videos = $playlist_video_query->with(['channel' => function ($query){
       return $query->select('id', 'name');
-    })->where('visibility', 'public')->get();
+    }])->where('visibility', 'public')->get();
     return $videos;
   }
 

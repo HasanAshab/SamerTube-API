@@ -33,6 +33,7 @@ class channelApi extends Controller
     $request->validate([
       'name' => 'bail|required|string|between:2,100',
       'description' => 'bail|required|string|max:500',
+      'country' => 'min:2',
       'tags' => ['bail', new CSVRule()],
       'logo' => 'image'
     ]);
@@ -40,6 +41,9 @@ class channelApi extends Controller
     $channel = Channel::find($id);
     $channel->name = $request->name;
     $channel->description = $request->description;
+    if(!is_null($request->country)){
+      $channel->country = $request->country;
+    }
     if($request->file('logo') !== null){
     $channel->removeFiles('logo');
     $logo_url = $channel->attachFile('logo', $request->file('logo'), true);
