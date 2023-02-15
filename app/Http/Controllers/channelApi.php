@@ -28,7 +28,7 @@ class channelApi extends Controller
   //Get any channel details
   public function show($id) {
     $channel = Channel::find($id);
-    $is_author = (auth()->id() === $channel->id);
+    $is_author = auth()->check() && auth()->id() === $channel->id;
     return [
       'success' => true,
       'author' => $is_author,
@@ -149,8 +149,11 @@ class channelApi extends Controller
 
   // Get videos of a channel [no param for own videos]
   public function getChannelVideos(Request $request, $id = null) {
+    if(!auth()->check() && is_null($id)){
+      abort(405);
+    }
     $id = $id??$request->user()->id;
-    $video_query = ($request->user()->is_admin || $request->user()->id === $id)
+    $video_query = auth()->check() && ($request->user()->is_admin || $request->user()->id === $id)
       ?Video::where('channel_id', $id)->latest()
       :Video::where('channel_id', $id)->where('visibility', 'public')->latest();
     if(isset($request->limit)){
@@ -168,8 +171,11 @@ class channelApi extends Controller
   
   // Get posts of a channel [no param for own posts]
   public function getChannelPosts(Request $request, $id = null) {
+    if(!auth()->check() && is_null($id)){
+      abort(405);
+    }
     $id = $id??$request->user()->id;
-    $post_query = ($request->user()->is_admin || $request->user()->id === $id)
+    $post_query = auth()->check() && ($request->user()->is_admin || $request->user()->id === $id)
       ?Post::with('polls')->where('channel_id', $id)->latest()
       :Post::with('polls')->where('channel_id', $id)->where('visibility', 'public')->latest();
     if(isset($request->limit)){

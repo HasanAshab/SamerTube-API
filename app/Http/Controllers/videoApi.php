@@ -39,7 +39,7 @@ class videoApi extends Controller
   // Get all public videos
   public function explore(Request $request) {
     $video_query = Video::query();
-    if (!auth()->user()->is_admin) {
+    if (!(auth()->check() || auth()->user()->is_admin)) {
       $video_query->where('visibility', 'public');
     }
     if (isset($request->limit)) {
@@ -157,9 +157,11 @@ class videoApi extends Controller
   // Get details of a video to watch
   public function watch(Request $request, $id) {
     $video = Video::where('id', $id)->channel()->select('videos.*', 'channels.name', 'channels.logo_url', 'channels.total_subscribers')->first();
-    if (!$request->user()->can('watch', [Video::class, $video])) {
+    if (!$request->user()->can('watch', [Video::class, $video]) || (!auth()->check() && $video->visibility !== 'public')) {
       abort(405);
     }
+    //here ...
+    if(auth()->check()){
     $old_history = History::where('user_id', $request->user()->id)->where('type', 'video')->where('history', $id)->first();
     if ($old_history !== null) {
       $old_history->delete();
@@ -168,8 +170,9 @@ class videoApi extends Controller
     $history->type = 'video';
     $history->history = $id;
     $history->save();
-    $video->author = ($video->channel_id === $request->user()->id);
-    $video->subscribed = Subscriber::where('subscriber_id', $request->user()->id)->where('channel_id', $video->channel_id)->exists();
+    }
+    $video->author = auth()->check() && ($video->channel_id === $request->user()->id);
+    $video->subscribed = auth()->check() && Subscriber::where('subscriber_id', $request->user()->id)->where('channel_id', $video->channel_id)->exists();
     return $video;
   }
 

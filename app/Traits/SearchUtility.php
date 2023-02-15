@@ -22,10 +22,10 @@ trait SearchUtility
       $query->whereTagLike($term);
     }
     foreach ($this->searchable as $fild){
-      $query->orWhere($fild, 'LIKE', '%'.$term.'%');
+      $query->orWhere($this->getTable().'.'.$fild, 'LIKE', '%'.$term.'%');
       if ($word_by_word){
         foreach (explode(' ', $term) as $word){
-          $query->orWhere($fild, 'LIKE', '%'.$word.'%');
+          $query->orWhere($this->getTable().'.'.$fild, 'LIKE', '%'.$word.'%');
         }
       }
     }

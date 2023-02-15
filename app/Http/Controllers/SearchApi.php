@@ -9,31 +9,31 @@ use App\Models\Playlist;
 use App\Models\Channel;
 use App\Models\Tag;
 use App\Models\History;
+use App\Events\Searched;
 use DB;
 
 class SearchApi extends Controller
 {
   
   // perform search of Video, Playlist and Channel
-  public function search(Request $request, $term = '') {
+  public function search(Request $request, $term) {
     $request->validate([
       'category_id' => 'exists:categories,id',
       'sort' => 'bail|required|string|in:relevance,view,date,rating',
       'type' => 'bail|required|string|in:all,video,channel,playlist',
       'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
     ]);
-    History::updateOrCreate(
-      ['type' => 'search', 'history' => $term],
-      ['created_at' => now()]
-    );
     
+    if(auth()->check()){
+      event(new Searched(auth()->user(), $term));
+    }
     $offset = isset($request->offset)
       ?$request->offset
       :0;
     
     if ($request->type === 'all' || $request->type === 'video') {
       $video_query = Video::search($term, true, true)->date($request->date_range);
-      if (!$request->user()->is_admin) {
+      if (!(auth()->check() && $request->user()->is_admin)) {
         $video_query->where('visibility', 'public');
       }
       if ($request->category_id !== null) {
@@ -54,7 +54,7 @@ class SearchApi extends Controller
     }
     if ($request->type === 'all' || $request->type === 'playlist') {
       $playlist_query = Playlist::search($term, false, true)->date($request->date_range);
-      if (!$request->user()->is_admin) {
+      if (!(auth()->check() && $request->user()->is_admin)) {
         $playlist_query->where('visibility', 'public');
       }
       $playlists = $playlist_query->get();
@@ -98,11 +98,13 @@ class SearchApi extends Controller
 
   // Get search suggestion
   public function suggestions(Request $request, $query = null) {
-    $history = History::where('user_id', $request->user()->id)->where('history', 'like', '%'.$query.'%')->where('type', 'search')->select('history as suggestion', DB::raw('true as history'))->limit(20)->get();
-    if ($query === null) {
-      return $history;
+    if(auth()->check()){
+      $history = History::where('user_id', $request->user()->id)->where('search_term', 'like', '%'.$query.'%')->select('search_term as suggestion', DB::raw('true as history'))->latest()->limit(20)->get();
+      if ($query === null) {
+        return $history;
+      }
     }
-    $titles = Video::when(!$request->user()->is_admin, function ($query) {
+    $titles = Video::when(!(auth()->check() || $request->user()->is_admin), function ($query) {
       return $query->where('visibility', 'public');
     })->where('title', 'like', '%'.$query.'%')->select('title as suggestion', DB::raw('false as history'))->get();
     

@@ -9,18 +9,11 @@ class History extends Model
   use HasFactory;
   protected $fillable = [
     'user_id',
-    'type',
-    'history',
+    'search_term',
+    'video_id',
     'created_at'
   ];
   function video() {
-    return $this->hasOne(Video::class, 'id', 'history');
+    return $this->hasOne(Video::class);
   }
-  public static function boot() {
-    parent::boot();
-    static::creating(function (History $history) {
-      $history->user_id = auth()->id();
-    });
-  }
-  
 }

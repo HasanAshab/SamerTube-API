@@ -15,7 +15,7 @@ Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middlewa
 // Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
-  'middleware' => ['api', 'throttle:4,1']
+  'middleware' => ['api', 'throttle:10,1']
 ], function ($router) {
   Route::post('register', [AuthApi::class, 'register']);
   Route::post('login', [AuthApi::class, 'login']);
@@ -67,26 +67,33 @@ Route::group([
   });
 });
 
-//Endpoints that accesseble without auth
+//Endpoints for necessary app services
 Route::get('file/{id}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
 Route::get('app/name', fn() => config('app.name'));
 
-// Endpoints for logged in users
+
+//Endpoints for guest users
+Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
+Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
+Route::get('posts/channel/{id?}', [channelApi::class, 'getChannelPosts']);
+Route::get('explore', [videoApi::class, 'explore']);
+Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
+Route::get('search/{term?}', [SearchApi::class, 'search']);
+Route::get('suggestions/{query?}', [SearchApi::class, 'suggestions']);
+
+
+
+// Endpoints for authenticated users
 Route::group([
-  'middleware' => ['api', 'auth:sanctum', 'verified', 'throttle:20,1']
+  'middleware' => ['api', 'auth:sanctum', 'verified', 'throttle:50,1']
 ], function ($router) {
   Route::get('channel', [channelApi::class, 'index']);
-  Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
-  //Route::put('channel', [channelApi::class, 'update']);
-  Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
-  Route::get('posts/channel/{id?}', [channelApi::class, 'getChannelPosts']);
+  Route::put('channel', [channelApi::class, 'update']);
   Route::post('subscribe/{channel_id}/{video_id?}', [channelApi::class, 'subscribe']);
   Route::post('unsubscribe/{channel_id}/{video_id?}', [channelApi::class, 'unsubscribe']);
   Route::get('subscriptions', [channelApi::class, 'subscriptions']);
-  //Route::post('video/upload', [videoApi::class, 'store']);
-  Route::get('explore', [videoApi::class, 'explore']);
+  Route::post('video/upload', [videoApi::class, 'store']);
   Route::put('video/{id}', [videoApi::class, 'update']);
-  Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::delete('video/{id}', [videoApi::class, 'destroy']);
   Route::post('view/{id}/{time}', [videoApi::class, 'setViewWatchTime']);
   Route::get('notification', [videoApi::class, 'getNotifications']);
@@ -122,8 +129,6 @@ Route::group([
   Route::post('watch-later/{video_id}', [videoApi::class, 'addVideoToWatchLater']);
   Route::delete('watch-later/{video_id}', [videoApi::class, 'removeVideoFromWatchLater']);
   Route::post('report/{id}', [videoApi::class, 'report']);
-  Route::get('search/{term?}', [SearchApi::class, 'search']);
-  Route::get('suggestions/{query?}', [SearchApi::class, 'suggestions']);
   Route::post('post', [videoApi::class, 'createPost']);
   Route::put('post/{id}', [videoApi::class, 'updatePost']);
   Route::delete('post/{id}', [videoApi::class, 'deletePost']);
@@ -143,15 +148,4 @@ Route::group([
     Route::get('video/{video_id}/audience', [DashboardApi::class, 'getVideoAudience']);
     Route::get('videos/previous/rankedby/views', [DashboardApi::class, 'getPreviousRankedVideos']);
   });
-});
-
-// Manual Test
-Route::post('video/upload', [videoApi::class, 'store']);
-Route::put('channel', [channelApi::class, 'update']);
-
-use Illuminate\Http\Request;
-use App\Models\Post;
-use App\Models\Poll;
-Route::post('/test/{q?}', function(Request $request) {
-  
 });
