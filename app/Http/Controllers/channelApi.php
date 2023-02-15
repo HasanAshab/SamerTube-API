@@ -18,22 +18,14 @@ class channelApi extends Controller
 
   //Get own channel details
   public function index(Request $request) {
-    return [
-      'success' => true,
-      'author' => true,
-      'channel' => $request->user()->channel
-    ];
+    return $request->user()->channel;
   }
 
   //Get any channel details
   public function show($id) {
     $channel = Channel::find($id);
-    $is_author = auth()->check() && auth()->id() === $channel->id;
-    return [
-      'success' => true,
-      'author' => $is_author,
-      'channel' => $channel
-    ];
+    $channel->author = auth()->check() && auth()->id() === $channel->id;
+    return $channel;
   }
 
   // Update a channel
@@ -163,10 +155,7 @@ class channelApi extends Controller
       $video_query->offset($offset)->limit($request->limit);
     }
     $videos = $video_query->get();
-    return [
-      'success' => true,
-      'videos' => $videos
-    ];
+    return $videos;
   } 
   
   // Get posts of a channel [no param for own posts]
@@ -185,10 +174,7 @@ class channelApi extends Controller
       $post_query->offset($offset)->limit($request->limit);
     }
     $posts = $post_query->get();
-    return [
-      'success' => true,
-      'posts' => $posts
-    ];
+    return $posts;
   }
 
   // Get all Subscribed channel id and name

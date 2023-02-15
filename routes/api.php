@@ -86,7 +86,6 @@ Route::middleware('wrapApiData')->group(function () {
 
 // Endpoints for authenticated users
 Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function () {
-
   Route::middleware('wrapApiData')->group(function () {
     Route::get('channel', [channelApi::class, 'index']);
     Route::get('subscriptions', [channelApi::class, 'subscriptions']);
@@ -103,7 +102,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('playlist/{id}', [videoApi::class, 'getPlaylistVideos'])->middleware('signed')->name('playlist.videos');
     Route::get('review/post/{id}', [videoApi::class, 'getPostReview']);
     Route::get('comment/post/{id}', [videoApi::class, 'getPostComments']);
-
   });
   Route::put('channel', [channelApi::class, 'update']);
   Route::post('subscribe/{channel_id}/{video_id?}', [channelApi::class, 'subscribe']);

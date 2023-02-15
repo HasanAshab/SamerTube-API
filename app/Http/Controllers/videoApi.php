@@ -39,7 +39,9 @@ class videoApi extends Controller
 {
   // Get all public videos
   public function explore(Request $request) {
-    $video_query = Video::query();
+    $video_query = Video::with(['channel' => function ($query){
+      return $query->select('id', 'name', 'logo_url');
+    });
     if (!(auth()->check() || auth()->user()->is_admin)) {
       $video_query->where('visibility', 'public');
     }
@@ -49,7 +51,8 @@ class videoApi extends Controller
       :0;
       $video_query->offset($offset)->limit($request->limit);
     }
-    return $video_query->rank()->channel()->select('videos.*', 'channels.name')->get();
+    $videos = $video_query->rank()->get();
+    return $videos;
   }
 
   // Save a new video
@@ -182,7 +185,7 @@ class videoApi extends Controller
       $result = $view->save() && Video::find($id)->increment('view_count', 1);
     }
     return $result
-    ?['success' => true]
+    ?response()->noContent()
     :response()->json(['success' => false], 451);
   }
   // Delete own video
@@ -244,7 +247,10 @@ class videoApi extends Controller
       $watch_later_query->offset($offset)->limit($request->limit);
     }
     $watch_later_videos_id = $watch_later_query->pluck('video_id');
-    return Video::whereIn('id', $watch_later_videos_id)->channel()->select('videos.*', 'channels.name')->get();
+    $videos = Video::with(['channel' => function ($query){
+      return $query->select('id', 'name');
+    })->whereIn('id', $watch_later_videos_id)->get();
+    return $videos;
   }
 
   // Like and dislike on a video
@@ -260,12 +266,12 @@ class videoApi extends Controller
     $reviewed = $video->reviewed();
     if ($reviewed === $request->review) {
       $video->unreview();
-      return ['success' => true];
+      return response()->noContent();
     }
 
     $result = $video->review($request->review);
     if ($result) {
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -273,8 +279,7 @@ class videoApi extends Controller
   // Get what is the review of user
   public function getReview(Request $request, $video_id) {
     $review_code = Video::find($video_id)->reviewed();
-    return ['success' => true,
-      'review' => $review_code];
+    return ['review' => $review_code];
   }
 
   // Create comment on a video
@@ -310,7 +315,7 @@ class videoApi extends Controller
         $uploader_email = User::find($video->channel_id)->email;
         $this->notify($uploader_email, $data, $notification->type);
       }
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -376,7 +381,7 @@ class videoApi extends Controller
     $comment->text = $request->text;
     $result = $comment->save();
     if ($result) {
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -414,7 +419,7 @@ class videoApi extends Controller
 
     if ($comment->reviewed() === $request->review) {
       $comment->unreview();
-      return ['success' => true];
+      return response()->noContent();
     }
 
     $result = $comment->review($request->review);
@@ -439,7 +444,7 @@ class videoApi extends Controller
         ];
         $this->notify($commenter->email, $data, $notification->type);
       }
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -483,7 +488,7 @@ class videoApi extends Controller
         $uploader_email = User::find($video->channel_id)->email;
         $this->notify($uploader_email, $data, $notification->type);
       }
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -547,7 +552,7 @@ class videoApi extends Controller
     $reply->text = $request->text;
     $result = $comment->save();
     if ($result) {
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -585,7 +590,7 @@ class videoApi extends Controller
     }
     if ($reply->reviewed() === $reply->review) {
       $reply->unreview();
-      return ['success' => true];
+      return response()->noContent();
     }
     $result = $reply->review($request->review);
 
@@ -611,7 +616,7 @@ class videoApi extends Controller
         $this->notify($replier->email, $data, $notification->type);
 
       }
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -657,7 +662,7 @@ class videoApi extends Controller
           $data,
           $notification->type);
       }
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false],
       451);
@@ -682,7 +687,8 @@ class videoApi extends Controller
       :0;
       $notification_query->offset($offset)->limit($request->limit);
     }
-    return $notification_query->get();
+    $notifications = $notification_query->get();
+    return $notifications;
   }
 
   // Hide a Notification
@@ -967,7 +973,9 @@ class videoApi extends Controller
       $offset = isset($request->offset)?$request->offset:0;
       $playlist_video_query->offset($offset)->limit($request->limit);
     }
-    $videos = $playlist_video_query->where('visibility', 'public')->channel()->select('videos.*', 'channels.name')->get();
+    $videos = $playlist_video_query->with(['channel' => function ($query){
+      return $query->select('id', 'name');
+    })->where('visibility', 'public')->get();
     return $videos;
   }
 
@@ -1095,11 +1103,11 @@ class videoApi extends Controller
     $reviewed = $post->reviewed();
     if ($reviewed === $request->review) {
       $post->unreview();
-      return ['success' => true];
+      return response()->noContent();
     }
     $result = $post->review($request->review);
     if ($result) {
-      return ['success' => true];
+      return response()->noContent();
     }
     return response()->json(['success' => false], 451);
   }
@@ -1107,8 +1115,7 @@ class videoApi extends Controller
   // Get what is the review of user on a post
   public function getPostReview(Request $request, $id) {
     $review_code = Post::find($id)->reviewed();
-    return ['success' => true,
-      'review' => $review_code];
+    return ['review' => $review_code];
   }
 
   // Create comment on a Community Post
@@ -1126,9 +1133,9 @@ class videoApi extends Controller
       if ($post->channel_id !== $commenter_id) {
         //notification
       }
-      return ['success' => true];
+      return response()->noContent();
     }
-    return response()->json(['success' => false], 451);
+    return abort(451);
   }
 
   // Get all comments of a specific post
@@ -1185,7 +1192,7 @@ class videoApi extends Controller
     }
     return is_null($vote)
       ?response()->json(['success' => false], 451)
-      :['success' => true];
+      :response()->noContent();
   }
 
   // Get which poll user is voted of a post

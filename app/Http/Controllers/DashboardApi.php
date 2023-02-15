@@ -37,12 +37,12 @@ class DashboardApi extends Controller
       $top_content->video->average_view_duration = ($average_view_sec < 3600)?gmdate("i:s", $average_view_sec):gmdate("H:i:s", $average_view_sec);
     }
     return [
-      'views_and_watch_time_data' => [
+      'views_and_watch_time' => [
         'total_views' => $views_total,
         'total_watch_time' => $watch_time_total,
         'analytics' => $views_and_watch_time_analytics
       ],
-      'subscribers_data' => [
+      'subscribers' => [
         'total' => $subscribers_total,
         'analytics' => $subscribers_analytics
       ],
@@ -69,7 +69,7 @@ class DashboardApi extends Controller
       $watch_time_from_unsubscribed = ($unsubscribed*100)/$total_watch_time;
     }
     return [
-      $top_geographies,
+      'top_geographies' => $top_geographies,
       'watch_time_from' => [
         'subscribed' => $watch_time_from_subscribed,
         'unsubscribed' => $watch_time_from_unsubscribed
@@ -93,12 +93,12 @@ class DashboardApi extends Controller
     $subscribers_total = $subscribers_analytics->sum('subscribe');
 
     return [
-      'views_and_watch_time_data' => [
+      'views_and_watch_time' => [
         'total_views' => $views_total,
         'total_watch_time' => $watch_time_total,
         'analytics' => $views_and_watch_time_analytics
       ],
-      'subscribers_data' => [
+      'subscribers' => [
         'total' => $subscribers_total,
         'analytics' => $subscribers_analytics
       ]
@@ -127,16 +127,16 @@ class DashboardApi extends Controller
     $comments_analytics = $comments->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) AS comment'))->groupBy('date')->get();
 
     return [
-      'view_duration_data' => [
+      'view_duration' => [
         'average_view_duration' => $average_view_duration,
         'analytics' => $average_view_duration_analytics
       ],
-      'review_data' => [
+      'review' => [
         'total' => $total_reviews,
         'likes' => $likes,
         'dislikes' => $dislikes
       ],
-      'comment_data' => [
+      'comment' => [
         'total' => $total_comments,
         'analytics' => $comments_analytics
       ]
@@ -155,10 +155,8 @@ class DashboardApi extends Controller
     $video_rank = $this->getPreviousRankedVideos()->search(function ($video) use ($video_id) {
       return $video->id === (int)$video_id;
     }) + 1;
-    return [
-      'rank' => $video_rank,
-      'video' => $video
-    ];
+    $video->rank = $video_rank;
+    return $video;
   }
 
   // Get Analytics of Video for Audience tab
@@ -181,7 +179,7 @@ class DashboardApi extends Controller
       $watch_time_from_unsubscribed = ($unsubscribed*100)/$video->watch_time;
     }
     return [
-      $top_geographies,
+      'top_geographies' => $top_geographies,
       'watch_time_from' => [
         'subscribed' => $watch_time_from_subscribed,
         'unsubscribed' => $watch_time_from_unsubscribed
@@ -192,7 +190,8 @@ class DashboardApi extends Controller
   // Get previous 10 videos ranked by views
   public function getPreviousRankedVideos() {
     $id = auth()->user()->id;
-    $videos = Video::where('channel_id', $id)->latest()->limit(10)->get()->sortByDesc('view_count')->values();
+    //$videos = Video::where('channel_id', $id)->latest()->limit(10)->get()->sortByDesc('view_count')->values();
+    $videos = Video::where('channel_id', $id)->sortByDesc('view_count')->latest()->limit(10)->get();
     return $videos;
   }
 }
