@@ -23,8 +23,7 @@ use App\Models\WatchLater;
 use App\Models\PlaylistVideo;
 use App\Models\SavedPlaylist;
 use App\Models\Report;
-use DB;
-use Carbon\Carbon;
+use App\Events\Watched;
 use App\Jobs\PublishVideo;
 use App\Jobs\PublishPost;
 use App\Mail\VideoUploadedMail;
@@ -32,7 +31,9 @@ use App\Mail\CommentedMail;
 use App\Mail\RepliedMail;
 use App\Mail\LikedMail;
 use App\Mail\GotHeartMail;
+use Carbon\Carbon;
 use Mail;
+use DB;
 
 class videoApi extends Controller
 {
@@ -160,16 +161,8 @@ class videoApi extends Controller
     if (!$request->user()->can('watch', [Video::class, $video]) || (!auth()->check() && $video->visibility !== 'public')) {
       abort(405);
     }
-    //here ...
     if(auth()->check()){
-    $old_history = History::where('user_id', $request->user()->id)->where('type', 'video')->where('history', $id)->first();
-    if ($old_history !== null) {
-      $old_history->delete();
-    }
-    $history = new History;
-    $history->type = 'video';
-    $history->history = $id;
-    $history->save();
+      event(new Watched(auth()->user(), $id));
     }
     $video->author = auth()->check() && ($video->channel_id === $request->user()->id);
     $video->subscribed = auth()->check() && Subscriber::where('subscriber_id', $request->user()->id)->where('channel_id', $video->channel_id)->exists();
@@ -220,7 +213,7 @@ class videoApi extends Controller
   //Get watch history
   public function watchHistory(Request $request) {
     $id = $request->user()->id;
-    $date_query = History::where('user_id', $id)->where('type', 'video')->select(DB::raw('DATE(created_at) as date'))->distinct('date')->latest();
+    $date_query = History::where('user_id', $id)->whereNotNull('video_id')->select(DB::raw('DATE(created_at) as date'))->distinct('date')->latest();
     if (isset($request->limit)) {
       $offset = isset($request->offset)
       ?$request->offset
@@ -230,7 +223,7 @@ class videoApi extends Controller
     $dates = $date_query->pluck('date');
     $histories = collect();
     foreach ($dates as $date) {
-      $videos = History::whereDate('histories.created_at', $date)->where('type', 'video')->where('user_id', $id)->join('videos', 'videos.id', '=', 'histories.history')->join('channels', 'channels.id', 'videos.channel_id')->select('history', 'channels.name', 'videos.title', DB::raw('TIME_FORMAT(SEC_TO_TIME(videos.duration), "%i:%s") AS duration'), 'videos.thumbnail_url')->get();
+      $videos = History::whereDate('histories.created_at', $date)->whereNotNull('video_id')->where('user_id', $id)->join('videos', 'videos.id', '=', 'histories.history')->join('channels', 'channels.id', 'videos.channel_id')->select('history', 'channels.name', 'videos.title', DB::raw('TIME_FORMAT(SEC_TO_TIME(videos.duration), "%i:%s") AS duration'), 'videos.thumbnail_url')->get();
       $histories->push(['date' => $date, 'videos' => $videos]);
     }
     return $histories;

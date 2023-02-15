@@ -8,6 +8,7 @@ use App\Http\Controllers\videoApi;
 use App\Http\Controllers\SearchApi;
 use App\Http\Controllers\fileApi;
 use App\Http\Controllers\DashboardApi;
+
 // Endpoints to Verify email
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailApi::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middleware(['auth:api', 'throttle:6,1'])->name('verification.send');
@@ -23,9 +24,7 @@ Route::group([
   Route::get('google/callback', [AuthApi::class, 'loginWithGoogle']);
   Route::post('forgot-password', [AuthApi::class, 'sentForgotPasswordLink']);
   Route::post('reset-password', [AuthApi::class, 'resetPassword']);
-  Route::group([
-    'middleware' => 'auth:sanctum'
-  ], function ($router) {
+  Route::middleware('auth:sanctum')->group(function () {
     Route::get('profile', [AuthApi::class, 'profile']);
     Route::get('is-admin', [AuthApi::class, 'isAdmin']);
     Route::post('change-password', [AuthApi::class, 'changePassword']);
@@ -70,56 +69,61 @@ Route::group([
 //Endpoints for necessary app services
 Route::get('file/{id}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');
 Route::get('app/name', fn() => config('app.name'));
+Route::get('categories', [videoApi::class, 'category']);
 
 
 //Endpoints for guest users
-Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
-Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
-Route::get('posts/channel/{id?}', [channelApi::class, 'getChannelPosts']);
-Route::get('explore', [videoApi::class, 'explore']);
-Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
-Route::get('search/{term?}', [SearchApi::class, 'search']);
-Route::get('suggestions/{query?}', [SearchApi::class, 'suggestions']);
-
+Route::middleware('wrapApiData')->group(function () {
+  Route::get('channel/{id}', [channelApi::class, 'show'])->name('channel.show');
+  Route::get('videos/channel/{id?}', [channelApi::class, 'getChannelVideos']);
+  Route::get('posts/channel/{id?}', [channelApi::class, 'getChannelPosts']);
+  Route::get('explore', [videoApi::class, 'explore']);
+  Route::get('video/watch/{id}', [videoApi::class, 'watch'])->middleware('signed')->name('video.watch');
+  Route::get('search/{term?}', [SearchApi::class, 'search']);
+  Route::get('suggestions/{query?}', [SearchApi::class, 'suggestions']);
+});
 
 
 // Endpoints for authenticated users
-Route::group([
-  'middleware' => ['api', 'auth:sanctum', 'verified', 'throttle:50,1']
-], function ($router) {
-  Route::get('channel', [channelApi::class, 'index']);
+Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function () {
+
+  Route::middleware('wrapApiData')->group(function () {
+    Route::get('channel', [channelApi::class, 'index']);
+    Route::get('subscriptions', [channelApi::class, 'subscriptions']);
+    Route::get('notification', [videoApi::class, 'getNotifications']);
+    Route::get('history', [videoApi::class, 'watchHistory']);
+    Route::get('video/liked', [videoApi::class, 'getLikedVideos'])->name('videos.liked');
+    Route::get('video/watch-later', [videoApi::class, 'getWatchLaterVideos'])->name('videos.watchLater');
+    Route::get('review/{video_id}', [videoApi::class, 'getReview']);
+    Route::get('comment/{video_id}', [videoApi::class, 'getComments']);
+    Route::get('comment/highlighted/{video_id}/{comment_id}', [videoApi::class, 'getCommentsWithHighlighted'])->middleware('signed')->name('comments.highlighted');
+    Route::get('reply/{comment_id}', [videoApi::class, 'getReplies']);
+    Route::get('reply/highlighted/{comment_id}/{reply_id}', [videoApi::class, 'getRepliesWithHighlighted'])->middleware('signed')->name('replies.highlighted');
+    Route::get('playlist', [videoApi::class, 'getPlaylists']);
+    Route::get('playlist/{id}', [videoApi::class, 'getPlaylistVideos'])->middleware('signed')->name('playlist.videos');
+    Route::get('review/post/{id}', [videoApi::class, 'getPostReview']);
+    Route::get('comment/post/{id}', [videoApi::class, 'getPostComments']);
+
+  });
   Route::put('channel', [channelApi::class, 'update']);
   Route::post('subscribe/{channel_id}/{video_id?}', [channelApi::class, 'subscribe']);
   Route::post('unsubscribe/{channel_id}/{video_id?}', [channelApi::class, 'unsubscribe']);
-  Route::get('subscriptions', [channelApi::class, 'subscriptions']);
   Route::post('video/upload', [videoApi::class, 'store']);
   Route::put('video/{id}', [videoApi::class, 'update']);
   Route::delete('video/{id}', [videoApi::class, 'destroy']);
   Route::post('view/{id}/{time}', [videoApi::class, 'setViewWatchTime']);
-  Route::get('notification', [videoApi::class, 'getNotifications']);
   Route::post('notification/hide/{notification_id}', [videoApi::class, 'hideNotification']);
-  Route::get('categories', [videoApi::class, 'category']);
-  Route::get('history', [videoApi::class, 'watchHistory']);
-  Route::get('video/liked', [videoApi::class, 'getLikedVideos'])->name('videos.liked');
-  Route::get('video/watch-later', [videoApi::class, 'getWatchLaterVideos'])->name('videos.watchLater');
   Route::post('review/{video_id}', [videoApi::class, 'reviewVideo']);
-  Route::get('review/{video_id}', [videoApi::class, 'getReview']);
   Route::post('comment/{video_id}', [videoApi::class, 'createComment']);
-  Route::get('comment/{video_id}', [videoApi::class, 'getComments']);
-  Route::get('comment/highlighted/{video_id}/{comment_id}', [videoApi::class, 'getCommentsWithHighlighted'])->middleware('signed')->name('comments.highlighted');
   Route::put('comment/{comment_id}', [videoApi::class, 'updateComment']);
   Route::delete('comment/{comment_id}', [videoApi::class, 'removeComment']);
   Route::post('review/comment/{comment_id}', [videoApi::class, 'reviewComment']);
   Route::post('reply/{comment_id}', [videoApi::class, 'postReply']);
-  Route::get('reply/{comment_id}', [videoApi::class, 'getReplies']);
-  Route::get('reply/highlighted/{comment_id}/{reply_id}', [videoApi::class, 'getRepliesWithHighlighted'])->middleware('signed')->name('replies.highlighted');
   Route::delete('reply/{comment_id}', [videoApi::class, 'removeReply']);
   Route::post('review/reply/{reply_id}', [videoApi::class, 'reviewReply']);
   Route::post('heart/{type}/{id}', [videoApi::class, 'giveHeart']);
   Route::delete('history/{history_id}', [videoApi::class, 'removeHistory']);
-  Route::get('playlist', [videoApi::class, 'getPlaylists']);
   Route::post('playlist', [videoApi::class, 'createPlaylist']);
-  Route::get('playlist/{id}', [videoApi::class, 'getPlaylistVideos'])->middleware('signed')->name('playlist.videos');
   Route::put('playlist/{id}', [videoApi::class, 'updatePlaylist']);
   Route::delete('playlist/{id}', [videoApi::class, 'removePlaylist']);
   Route::post('playlist/{id}', [videoApi::class, 'savePlaylist']);
@@ -133,12 +137,11 @@ Route::group([
   Route::put('post/{id}', [videoApi::class, 'updatePost']);
   Route::delete('post/{id}', [videoApi::class, 'deletePost']);
   Route::post('review/post/{id}', [videoApi::class, 'reviewPost']);
-  Route::get('review/post/{id}', [videoApi::class, 'getPostReview']);
   Route::post('comment/post/{id}', [videoApi::class, 'createPostComment']);
-  Route::get('comment/post/{id}', [videoApi::class, 'getPostComments']);
   Route::post('vote/{id}', [videoApi::class, 'votePoll']);
   Route::group([
-    'prefix' => 'dashboard'
+    'prefix' => 'dashboard',
+    'middleware' => 'wrapApiData'
   ], function ($router) {
     Route::get('overview', [DashboardApi::class, 'getChannelOverview']);
     Route::get('audience', [DashboardApi::class, 'getChannelAudience']);
