@@ -7,14 +7,15 @@ use App\Models\User;
 use App\Models\Video;
 use App\Models\Channel;
 use Validator;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Auth\Events\Registered;
+use App\Listeners\SendNewUserJoinedNotificationToAdmins;
 use Stevebauman\Location\Facades\Location;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Auth\Events\PasswordReset;
 use Hash;
 use Socialite;
-use App\Notifications\NewUserJoined;
 use Illuminate\Support\Facades\Notification;
 
 
@@ -37,9 +38,7 @@ class AuthApi extends Controller
       'country' => 'Bangladesh'//Location::get($request->ip())->countryName);
     ]);
     if ($user && $channel) {
-      $admins = User::where('is_admin', 1)->get();
       event(new Registered($user));
-      Notification::send($admins, new NewUserJoined($user));
       return ['success' => true,
         'message' => 'Your account is successfully created!'];
     }
@@ -94,8 +93,9 @@ class AuthApi extends Controller
       $createUser->markEmailAsVerified();
       $createChannel = $this->createChannel($user->name, $user->avatar, 'Bangladesh'); //Location::get($request->ip())->countryName);
       if ($createUser and $createChannel) {
-        $admins = User::where('is_admin', 1)->get();
-        Notification::send($admins, new NewUserJoined($createUser));
+        Event::forget(Registered::class);
+        Event::listen(Registered::class, SendNewUserJoinedNotificationToAdmins::class);
+        event(new Registered($user));
         return [
           'success' => true,
           'access_token' => $createUser->createToken("API TOKEN", ['user'])->plainTextToken
@@ -168,27 +168,25 @@ class AuthApi extends Controller
   }
   
   public function isAdmin(){
-    return auth()->user()->is_admin;
+    return ['admin' => auth()->user()->is_admin];
   }
   
   // Create new token
-  public function refresh(Request $request) {
-    $user = $request->user();
-    if ($user->currentAccessToken()->delete()) {
-      $token = ($user->is_admin)
-        ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
-        :$user->createToken("API TOKEN", ['user'])->plainTextToken;
-      return [
+  public function refresh() {
+    $user = auth()->user();
+    $user->currentAccessToken()->delete();
+    $token = ($user->is_admin)
+      ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
+      :$user->createToken("API TOKEN", ['user'])->plainTextToken;
+    return [
         'success' => true,
         'access_token' => $token
-      ];
-    }
-    return response()->json(['success' => false], 451);
+    ];
   }
 
   // Logout a user
-  public function logout(Request $request) {
-    if ($request->user()->currentAccessToken()->delete()) {
+  public function logout() {
+    if (auth()->user()->currentAccessToken()->delete()) {
       return ['success' => true];
     }
     return response()->json(['success' => false], 451);
@@ -203,13 +201,10 @@ class AuthApi extends Controller
   }
 
   // Delete a user
-  public function destroy(Request $request) {
-    $id = $request->user()->id;
-    $result = User::find($id)->delete();
-    $channel = Channel::find($id);
-    $channel->delete();
+  public function destroy() {
+    auth()->user()->channel()->delete();
+    $result = auth()->user()->delete();
     if ($result) {
-      unlink(storage_path("app/public/".$channel->logo));
       return ['success' => true,
         'message' => 'Your account is successfully deleted!'];
     }

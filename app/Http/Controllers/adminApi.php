@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Channel;
 use App\Models\Video;
+use App\Models\Post;
 use App\Models\Notification;
 use App\Models\Subscriber;
 use App\Models\Category;
@@ -27,11 +28,11 @@ class adminApi extends Controller
     $new_users_count = User::where('is_admin', 0)->whereDate('created_at', '>=', now()->subDays(2))->count();
     $total_admins = User::where('is_admin', 1)->count();
     $total_videos = Video::query()->count();
+    $total_posts = Post::query()->count();
     $total_categories = Category::query()->count();
     $total_reports = Report::query()->count();
     return [
-      'success' => true,
-      'users_data' => [
+      'user' => [
         'total' => $total_users,
         'active_users' => $active_users_count,
         'new_users' => $new_users_count,
@@ -39,6 +40,7 @@ class adminApi extends Controller
       ],
       'total_admins' => $total_admins,
       'total_videos' => $total_videos,
+      'total_posts' => $total_posts,
       'total_categories' => $total_categories,
       'total_reports' => $total_reports
     ];
@@ -46,7 +48,7 @@ class adminApi extends Controller
 
   // Get all users
   public function getUsers(Request $request) {
-    $user_query = User::where('is_admin', 0);
+    $user_query = User::join('channels', 'channels.id', '=', 'users.id')->select('users.*', 'channels.name', 'channels.country', 'channels.total_subscribers', 'channels.total_videos', 'channels.logo_url')->orderByDesc('channels.total_subscribers')->where('is_admin', 0);
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
       $user_query->offset($offset)->limit($request->limit);
@@ -70,8 +72,8 @@ class adminApi extends Controller
   }
 
   // Get all new users
-  public function getNewUsers() {
-    $user_query = User::where('is_admin', 0)->whereDate('created_at', '>=', now()->subDays(2));
+  public function getNewUsers(Request $request) {
+    $user_query = User::join('channels', 'channels.id', '=', 'users.id')->select('users.*', 'channels.name', 'channels.country', 'channels.total_subscribers', 'channels.total_videos', 'channels.logo_url')->latest()->where('is_admin', 0)->whereDate('created_at', '>=', now()->subDays(2));
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
       $user_query->offset($offset)->limit($request->limit);
@@ -80,23 +82,13 @@ class adminApi extends Controller
   }
 
   // Get all admins
-  public function getAdmins() {
-    $admin_query = User::where('is_admin', 1);
+  public function getAdmins(Request $request) {
+    $admin_query = User::join('channels', 'channels.id', '=', 'users.id')->select('users.*', 'channels.name', 'channels.country', 'channels.total_subscribers', 'channels.total_videos', 'channels.logo_url')->where('is_admin', 1)->whereNot('users.id', auth()->id());
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
       $admin_query->offset($offset)->limit($request->limit);
     }
     return $admin_query->get();
-  }
-
-  // Get all Channels
-  public function getChannels(Request $request) {
-    $comment_query = Channel::query();
-    if (isset($request->limit)) {
-      $offset = isset($request->offset)?$request->offset:0;
-      $comment_query->offset($offset)->limit($request->limit);
-    }
-    return $comment_query->get();
   }
 
   // Get all reports
@@ -170,9 +162,9 @@ class adminApi extends Controller
   // Add new category of video
   public function addCategory(Request $request) {
     $request->validate([
-      'category' => 'required|string|unique:categories',
+      'name' => 'required|string|unique:categories',
     ]);
-    $result = Category::create($validator->validated());
+    $result = Category::create($request->only('name'));
     if ($result) {
       return ['success' => true,
         'message' => 'Category successfully added!'];
@@ -208,10 +200,10 @@ class adminApi extends Controller
   public function removeUser($id) {
     $user = User::findOrFail($id);
     if ($user->is_admin) {
-      return accessDenied();
+      return abort(405);
     }
     $result = $user->delete();
-    $r3 = $user->channel->delete();
+    $r3 = $user->channel()->delete();
     if ($result) {
       return ['success' => true,
         'message' => 'Account successfully deleted!'];

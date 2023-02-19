@@ -10,18 +10,22 @@ use App\Models\Poll;
 use App\Models\Comment;
 use App\Models\Review;
 use App\Jobs\PublishPost;
+use Illuminate\Support\Facades\Artisan;
 
 beforeEach(function() {
   $this->user = User::factory()->create();
-  Channel::factory()->create();
+  Channel::factory()->create(['id' => $this->user->id]);
 
   $this->creator = User::factory()->create();
-  Channel::factory()->create(['post_unlocked' => true]);
+  Channel::factory()->create(['id' => $this->creator->id, 'post_unlocked' => true]);
 
   $this->admin = User::factory()->create(['is_admin' => 1]);
-  Channel::factory()->create();
+  Channel::factory()->create(['id' => $this->admin->id]);
 });
 
+afterEach(function (){
+  Artisan::call('clear:uploads');
+});
 
 test('User without unlocked post can\'t create post', function() {
   $data = [
@@ -96,7 +100,6 @@ test('Post can be scheduled', function() {
 });
 
 test('Post can attach images', function() {
-  $totalFilesBefore = File::count();
   $data = [
     'content' => 'Hello this is a test post',
     'type' => 'text',
@@ -104,14 +107,12 @@ test('Post can attach images', function() {
     'images' => [UploadedFile::fake()->image('test1.jpg', 1), UploadedFile::fake()->image('test2.jpg', 1)]
   ];
   $response = $this->actingAs($this->creator)->postJson('/api/post', $data);
-  $totalFilesAfter = File::count();
   $response->assertStatus(200);
-  $this->assertTrue($totalFilesBefore + 2 === $totalFilesAfter, 'Image was not saved!');
+  $this->assertDatabaseCount('posts', 1);
+  $this->assertDatabaseCount('files', 2);
 });
 
 test('Post with polls', function() {
-  $totalPostsBefore = Post::count();
-  $totalPollsBefore = Poll::count();
   $data = [
     'content' => 'Hello this is a test post',
     'type' => 'text_poll',
@@ -119,17 +120,12 @@ test('Post with polls', function() {
     'polls' => ['poll1', 'poll2']
   ];
   $response = $this->actingAs($this->creator)->postJson('/api/post', $data);
-  $totalPostsAfter = Post::count();
-  $totalPollsAfter = Poll::count();
   $response->assertStatus(200);
-  $this->assertTrue($totalPostsBefore + 1 === $totalPostsAfter, 'Post was not created!');
-  $this->assertTrue($totalPollsBefore + 2 === $totalPollsAfter, 'Poll was not created!');
+  $this->assertDatabaseCount('posts', 1);
+  $this->assertDatabaseCount('polls', 2);
 });
 
 test('Polls can attach image', function() {
-  $totalPostsBefore = Post::count();
-  $totalPollsBefore = Poll::count();
-  $totalFilesBefore = File::count();
   $data = [
     'content' => 'Hello this is a test post',
     'type' => 'image_poll',
@@ -138,13 +134,19 @@ test('Polls can attach image', function() {
     'poll_images' => [UploadedFile::fake()->image('poll_img1.jpg', 1), UploadedFile::fake()->image('poll_img2.jpg', 1)]
   ];
   $response = $this->actingAs($this->creator)->postJson('/api/post', $data);
-  $totalPostsAfter = Post::count();
-  $totalPollsAfter = Poll::count();
-  $totalFilesAfter = File::count();
   $response->assertStatus(200);
-  $this->assertTrue($totalPostsBefore + 1 === $totalPostsAfter, 'Post was not created!');
-  $this->assertTrue($totalPollsBefore + 2 === $totalPollsAfter, 'Poll was not created!');
-  $this->assertTrue($totalFilesBefore + 2 === $totalFilesAfter, 'Image was not saved!');
+  $this->assertDatabaseCount('posts', 1);
+  $this->assertDatabaseCount('polls', 2);
+  $this->assertDatabaseCount('files', 2);
+});
+
+test('Posts can be paginated', function() {
+  $posts = Post::factory(10)->createQuietly([
+    'channel_id' => $this->creator->id,
+  ]);
+  $response = $this->actingAs($this->creator)->getJson('/api/posts/channel?offset=1&limit=5');
+  $response->assertStatus(200);
+  $response->assertJsonCount(5, 'data');
 });
 
 test('User can see his all post', function() {
@@ -153,6 +155,7 @@ test('User can see his all post', function() {
   ]);
   $response = $this->actingAs($this->creator)->getJson('/api/posts/channel');
   $response->assertStatus(200);
+  $response->assertJsonCount($posts->count(), 'data');
 });
 
 test('User can\'t see others scheduled post', function() {
@@ -170,16 +173,13 @@ test('User can\'t see others scheduled post', function() {
 
 
 test('Admin can see others scheduled posts', function() {
-  $post = Post::factory()->createQuietly([
+  $posts = Post::factory(3)->createQuietly([
     'channel_id' => $this->creator->id,
     'visibility' => 'scheduled'
   ]);
   $response = $this->actingAs($this->admin)->getJson('/api/posts/channel/'. $this->creator->id);
   $response->assertStatus(200);
-  $response->assertJson([
-    'success' => true,
-    'data' => [$post->toArray()]
-  ]);
+  $response->assertJsonCount($posts->count(), 'data');
 });
 
 test('Post total votes resolved as rate and User can see which poll they are voted', function () {
@@ -490,7 +490,6 @@ test('User can see comments on their scheduled post', function() {
   $response = $this->actingAs($this->creator)->getJson('/api/comment/post/'.$post->id);
   $response->assertStatus(200);
   $this->assertDatabaseCount('comments', 1);
-
 });
 
 test('Admin can see comments on others scheduled post', function() {

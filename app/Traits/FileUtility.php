@@ -67,12 +67,18 @@ trait FileUtility {
     return time().'_'.$file->hashName();
   }
 
-  public function removeFiles($name) {
-    File::where('fileable_id', $this->id)->where('fileable_type', get_class($this))->where('name', $name)->delete();
+  public function removeFiles($name = null) {
+    if(is_null($name)){
+      foreach ($this->files as $file) {
+        unlink(storage_path("app/public/".$file->path));
+      }
+      return $this->files()->delete();
+    }
     $files = File::where('fileable_id', $this->id)->where('fileable_type', get_class($this))->where('name', $name)->get();
     foreach ($files as $file) {
       unlink(storage_path("app/public/".$file->path));
     }
+    return File::where('fileable_id', $this->id)->where('fileable_type', get_class($this))->where('name', $name)->delete();
   }
 
   public function removeFile($id) {

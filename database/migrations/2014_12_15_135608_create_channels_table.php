@@ -26,7 +26,6 @@ return new class extends Migration
             $table->integer('total_comments')->default(0);
             $table->integer('total_subscribers')->default(0);
             $table->boolean('post_unlocked')->default(false);
-            $table->timestamps();
         });
     }
 

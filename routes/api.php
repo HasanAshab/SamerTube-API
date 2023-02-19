@@ -16,7 +16,7 @@ Route::post('/email/verify/resend', [VerifyEmailApi::class, 'resend'])->middlewa
 // Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
-  'middleware' => ['api', 'throttle:10,1']
+  'middleware' => ['throttle:10,1']
 ], function ($router) {
   Route::post('register', [AuthApi::class, 'register']);
   Route::post('login', [AuthApi::class, 'login']);
@@ -25,24 +25,20 @@ Route::group([
   Route::post('forgot-password', [AuthApi::class, 'sentForgotPasswordLink']);
   Route::post('reset-password', [AuthApi::class, 'resetPassword']);
   Route::middleware('auth:sanctum')->group(function () {
-    Route::get('profile', [AuthApi::class, 'profile']);
-    Route::get('is-admin', [AuthApi::class, 'isAdmin']);
+    Route::get('profile', [AuthApi::class, 'profile'])->middleware('wrapApiData');
+    Route::get('is-admin', [AuthApi::class, 'isAdmin'])->middleware('wrapApiData');
     Route::post('change-password', [AuthApi::class, 'changePassword']);
+    Route::post('refresh', [AuthApi::class, 'refresh']);
     Route::post('logout', [AuthApi::class, 'logout']);
     Route::post('logout-all', [AuthApi::class, 'logoutAllDevices']);
-    Route::post('refresh', [AuthApi::class, 'refresh']);
     Route::delete('delete', [AuthApi::class, 'destroy']);
   });
 });
 
 // Endpoints for Admin services
 Route::group([
-  'prefix' => 'admin',
-  'middleware' => ['api', 'auth:sanctum', 'abilities:admin'],
-
-], function ($router) {
-  Route::group([
-    'prefix' => 'c-panel'
+    'prefix' => 'c-panel',
+    'middleware' => ['auth:sanctum', 'admin']
   ], function ($router) {
     Route::post('make-admin/{id}', [adminApi::class, 'makeAdmin']);
     Route::post('notify', [adminApi::class, 'sentNotification']);
@@ -50,21 +46,21 @@ Route::group([
     Route::delete('user/{id}', [adminApi::class, 'removeUser']);
     Route::delete('category/{id}', [adminApi::class, 'removeCategory']);
     Route::delete('notification/{id}', [adminApi::class, 'removeNotification']);
-  });
   Route::group([
-    'prefix' => 'dashboard'
+    'prefix' => 'dashboard',
+    'middleware' => 'wrapApiData'
   ], function ($router) {
     Route::get('/', [adminApi::class, 'dashboard']);
+    Route::get('admins', [adminApi::class, 'getAdmins']);
     Route::get('users', [adminApi::class, 'getUsers']);
     Route::get('users/active', [adminApi::class, 'getActiveUsers']);
     Route::get('users/new', [adminApi::class, 'getNewUsers']);
-    Route::get('channels', [adminApi::class, 'getChannels']);
     Route::get('reports/{type}', [adminApi::class, 'getReports']);
     Route::get('reports/{type}/{id}', [adminApi::class, 'getContentReports']);
     Route::get('reports/{type}/top', [adminApi::class, 'getTopReportedContent']);
-    Route::get('admins', [adminApi::class, 'getAdmins']);
   });
 });
+
 
 //Endpoints for necessary app services
 Route::get('file/{id}', [fileApi::class, 'index'])->middleware(['signed', 'throttle:10,1'])->name('file.serve');

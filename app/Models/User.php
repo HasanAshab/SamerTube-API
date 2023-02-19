@@ -11,47 +11,43 @@ use Illuminate\Contracts\Auth\CanResetPassword;
 
 class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
 {
-    use HasApiTokens, HasFactory, Notifiable;
+  use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'email',
-        'google_id',
-        'password'
-    ];
+  /**
+  * The attributes that are mass assignable.
+  *
+  * @var array<int, string>
+  */
+  protected $fillable = [
+    'email',
+    'google_id',
+    'password'
+  ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+  /**
+  * The attributes that should be hidden for serialization.
+  *
+  * @var array<int, string>
+  */
+  protected $hidden = [
+    'password',
+    'remember_token',
+  ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-      //
-    ];
-    
-    public function channel() {
-      return $this->hasOne(Channel::class, 'id', 'id');
-    }
-    
-    public function videos() {
-      return $this->hasMany(Video::class, 'channel_id');
-    }
-    
-    public function likedVideos() {
-      return $this->hasMany(Review::class, 'reviewer_id');
-    }
+  /**
+  * The attributes that should be cast.
+  *
+  * @var array<string, string>
+  */
+  protected $casts = [
+    //
+  ];
+
+  public function channel() {
+    return $this->hasOne(Channel::class, 'id', 'id');
+  }
+
+  public function videos() {
+    return $this->hasMany(Video::class, 'channel_id');
+  }
 }

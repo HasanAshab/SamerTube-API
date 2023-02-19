@@ -14,6 +14,8 @@ class Channel extends Model
 {
   use HasFactory, TagUtility, SearchUtility, FileUtility;
   
+  public $timestamps = false;
+  
   protected $fillable = [
     'name',
     'description',

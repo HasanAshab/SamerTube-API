@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 //use Fruitcake\Cors\HandleCors;
 
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
@@ -66,6 +65,7 @@ class Kernel extends HttpKernel
     'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
     'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
     'wrapApiData' => \App\Http\Middleware\WrapApiData::class,
+    'admin' => \App\Http\Middleware\CheckIfUserIsAdmin::class,
     'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
     'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
   ];

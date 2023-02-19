@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
   */
   public function boot() {
     if (!env('USER_ACTIVE_STATUS', false)) {
-      // Use our customized personal access token model
+      // Use customized personal access token model
       Sanctum::usePersonalAccessTokenModel(
         PersonalAccessToken::class
       );

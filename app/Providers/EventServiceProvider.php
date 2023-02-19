@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use App\Listeners\SendNewUserJoinedNotificationToAdmins;
 use App\Events\Searched;
 use App\Listeners\PushSearchHistory;
 use App\Events\Watched;
@@ -22,6 +23,7 @@ class EventServiceProvider extends ServiceProvider
   protected $listen = [
     Registered::class => [
       SendEmailVerificationNotification::class,
+      SendNewUserJoinedNotificationToAdmins::class,
     ],
     Searched::class => [
       PushSearchHistory::class,
