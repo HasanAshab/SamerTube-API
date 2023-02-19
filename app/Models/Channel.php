@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\TagUtility;
 use App\Traits\SearchUtility;
 use App\Traits\FileUtility;
+use App\Traits\ReportUtility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
 class Channel extends Model
 {
-  use HasFactory, TagUtility, SearchUtility, FileUtility;
+  use HasFactory, TagUtility, SearchUtility, FileUtility, ReportUtility;
   
   public $timestamps = false;
   

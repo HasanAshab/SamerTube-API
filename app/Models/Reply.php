@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\ReviewUtility;
+use App\Traits\ReportUtility;
 use Carbon\Carbon;
 
 class Reply extends Model
 {
-  use HasFactory, ReviewUtility;
+  use HasFactory, ReviewUtility, ReportUtility;
   use \Znck\Eloquent\Traits\BelongsToThrough;
 
   protected $appends = ['edited'];

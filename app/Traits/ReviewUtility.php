@@ -15,21 +15,15 @@ trait ReviewUtility {
   }
   
   public static function liked($limit = null, $offset = null){
-    $review_query = Review::where('reviewable_type', get_called_class())->where('reviewer_id', auth()->id())->where('review', 1);
+    $review_query = Review::with('reviewable')->where('reviewable_type', get_called_class())->where('reviewer_id', auth()->id())->where('review', 1);
     if(!is_null($limit)){
       $offset = is_null($offset)?0:$offset;
       $review_query->offset($offset)->limit($limit);
     }
-    $reviews = $review_query->get();
-    $models = collect();
-    foreach ($reviews as $review){
-      $models->push($review->reviewable);
-    }
-    return $models;
+    return $review_query->get();
   }
 
   public function review($review_code) {
-    $user_id = auth()->id();
     $review = Review::updateOrCreate(
       ['reviewable_type' => get_class($this), 'reviewable_id' => $this->id],
       ['review' => $review_code]
@@ -41,7 +35,6 @@ trait ReviewUtility {
   }
 
   public function unreview(){
-    $user_id = auth()->id();
     $reviewed = $this->reviewed(true);
     if($reviewed->review === 1){
       $result = $reviewed->delete();

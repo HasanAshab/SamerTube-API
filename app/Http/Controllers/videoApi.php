@@ -861,12 +861,6 @@ class videoApi extends Controller
 
   // Add video to playlist
   public function addVideoToPlaylist($playlist_id, $video_id) {
-    if (!Video::find($video_id)) {
-      return response()->json([
-        'success' => false,
-        'message' => 'Video not found!'
-      ], 404);
-    }
     $playlist = Playlist::find($playlist_id);
     if ($playlist->user_id !== auth()->user()->id) {
       abort(405);
@@ -979,18 +973,17 @@ class videoApi extends Controller
     return $videos;
   }
 
-  // Report any content material
+  // Report a video
   public function report(Request $request, $id) {
     $request->validate([
-      'type' => 'required|in:image_or_title,video,user,comment,reply',
       'reason' => 'required|string|between:10,100'
     ]);
-
-    $report = new Report;
-    $report->type = $request->type;
-    $report->for = $id;
-    $report->reason = $request->reason;
-    if ($report->save()) {
+    $video = Video::find($id);
+    if (!$request->user()->can('watch', [Video::class, $video])) {
+      abort(405);
+    }
+    
+    if ($video->report($request->reason)) {
       return [
         'success' => true,
         'message' => 'Thanks for reporting!'

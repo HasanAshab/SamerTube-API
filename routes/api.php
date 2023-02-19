@@ -55,9 +55,9 @@ Route::group([
     Route::get('users', [adminApi::class, 'getUsers']);
     Route::get('users/active', [adminApi::class, 'getActiveUsers']);
     Route::get('users/new', [adminApi::class, 'getNewUsers']);
-    Route::get('reports/{type}', [adminApi::class, 'getReports']);
+    Route::get('reports', [adminApi::class, 'getReports']);
     Route::get('reports/{type}/{id}', [adminApi::class, 'getContentReports']);
-    Route::get('reports/{type}/top', [adminApi::class, 'getTopReportedContent']);
+    Route::get('top/reports/{type}', [adminApi::class, 'getTopReportedContent']);
   });
 });
 
@@ -126,7 +126,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   Route::delete('playlist/{playlist_id}/{video_id}', [videoApi::class, 'removeVideoFromPlaylist']);
   Route::post('watch-later/{video_id}', [videoApi::class, 'addVideoToWatchLater']);
   Route::delete('watch-later/{video_id}', [videoApi::class, 'removeVideoFromWatchLater']);
-  Route::post('report/{id}', [videoApi::class, 'report']);
+  Route::post('report/video/{id}', [videoApi::class, 'report']);
   Route::post('post', [videoApi::class, 'createPost']);
   Route::put('post/{id}', [videoApi::class, 'updatePost']);
   Route::delete('post/{id}', [videoApi::class, 'deletePost']);

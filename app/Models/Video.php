@@ -8,6 +8,7 @@ use App\Traits\SearchUtility;
 use App\Traits\ReviewUtility;
 use App\Traits\CommentUtility;
 use App\Traits\FileUtility;
+use App\Traits\ReportUtility;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,7 +16,7 @@ use Carbon\Carbon;
 
 class Video extends Model
 {
-  use HasFactory, TagUtility, SearchUtility, ReviewUtility, CommentUtility, FileUtility;
+  use HasFactory, TagUtility, SearchUtility, ReviewUtility, CommentUtility, FileUtility, ReportUtility;
   
   protected $fillable = [
     'channel_id',

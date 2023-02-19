@@ -19,7 +19,6 @@ class PollFactory extends Factory
     return [
       'post_id' => fake()->randomElement($posts_id),
       'name' => fake()->name(),
-      //'vote_count' => random_int(0, 20),
     ];
   }
 }

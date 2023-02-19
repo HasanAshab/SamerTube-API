@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\ReviewUtility;
 use App\Traits\CommentUtility;
+use App\Traits\ReportUtility;
 use App\Traits\FileUtility;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,7 +14,7 @@ use Carbon\Carbon;
 
 class Post extends Model
 {
-  use HasFactory, ReviewUtility, CommentUtility, FileUtility;
+  use HasFactory, ReviewUtility, CommentUtility, FileUtility, ReportUtility;
   
   protected $appends = ['edited'];
   protected $hidden = [

@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\ReviewUtility;
+use App\Traits\ReportUtility;
 use Carbon\Carbon;
 
 class Comment extends Model
 {
-  use HasFactory,
-  ReviewUtility;
+  use HasFactory, ReviewUtility, ReportUtility;
   protected $appends = ['edited'];
   protected $hidden = ['updated_at'];
   protected $fillable = [

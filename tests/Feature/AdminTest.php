@@ -2,6 +2,9 @@
 use App\Models\User;
 use App\Models\Channel;
 use App\Models\Category;
+use App\Models\Report;
+use App\Models\Video;
+use App\Models\Post;
 
 beforeEach(function() {
   $this->admin = User::factory()->create(['is_admin' => 1]);
@@ -69,9 +72,9 @@ test('Get all users with pagination', function () {
   $response->assertJsonCount(2, 'data');
 });
 
-test('Get all active users with paginatiom', function () {});
+test('Get all active users with pagination', function () {});
 
-test('Get all new users with paginatiom', function () {
+test('Get all new users with pagination', function () {
   $oldUsers = User::factory(5)->create(['created_at' => now()->subDays(3)]);
   $oldChannels = Channel::factory(5)->create();
   $newUsers = User::factory(5)->create();
@@ -82,7 +85,7 @@ test('Get all new users with paginatiom', function () {
 });
 
 
-test('Get all admins with paginatiom', function () {
+test('Get all admins with pagination', function () {
   $admins = User::factory(5)->create(['is_admin' => 1]);
   $channels = Channel::factory(5)->create();
   $response = $this->getJson('api/c-panel/dashboard/admins?offset=1&limit=2');
@@ -90,6 +93,64 @@ test('Get all admins with paginatiom', function () {
   $response->assertJsonCount(2, 'data');
 });
 
-test('Reports', function () {});
+test('Get all reports with pagination', function () {
+  $reporter = User::factory()->create();
+  $category = Category::factory()->create();
+  $video = Video::factory()->createQuietly();
+  $post = Post::factory()->createQuietly();
+  $reports = Report::factory(2)->createQuietly([
+    'user_id' => $reporter->id,
+    'reportable_id' => $video->id,
+    'reportable_type' => Video::class
+  ]);
+  $reports = Report::factory(2)->createQuietly([
+    'user_id' => $reporter->id,
+    'reportable_id' => $post->id,
+    'reportable_type' => Post::class
+  ]);
+  $response = $this->getJson('api/c-panel/dashboard/reports?offset=1&limit=3');
+  $response->assertStatus(200);
+  $response->assertJsonCount(3, 'data');
+});
+
+test('Get all reports of specific content with pagination', function () {
+  $reporter = User::factory()->create();
+  $category = Category::factory()->create();
+  $video = Video::factory()->createQuietly();
+  $post = Post::factory()->createQuietly();
+  $reports = Report::factory(2)->createQuietly([
+    'user_id' => $reporter->id,
+    'reportable_id' => $video->id,
+    'reportable_type' => Video::class
+  ]);
+  $reports = Report::factory(2)->createQuietly([
+    'user_id' => $reporter->id,
+    'reportable_id' => $post->id,
+    'reportable_type' => Post::class
+  ]);
+  $response = $this->getJson('api/c-panel/dashboard/reports/video/'.$video->id.'?offset=1&limit=2');
+  $response->assertStatus(200);
+  $response->assertJsonCount(1, 'data');
+});
+
+test('Get top reported content with pagination', function () {
+  $reporter = User::factory()->create();
+  $post1 = Post::factory()->createQuietly();
+  $post2 = Post::factory()->createQuietly();
+  Report::factory(2)->createQuietly([
+    'user_id' => $reporter->id,
+    'reportable_id' => $post1->id,
+    'reportable_type' => Post::class
+  ]);
+  Report::factory(3)->createQuietly([
+    'user_id' => $reporter->id,
+    'reportable_id' => $post2->id,
+    'reportable_type' => Post::class
+  ]);
+  $response = $this->getJson('api/c-panel/dashboard/top/reports/post?offset=1&limit=1');
+  //dd($response->decodeResponseJson());
+  $response->assertStatus(200);
+  $response->assertJsonCount(1, 'data');
+});
 
 test('Send notification to all users', function () {});
