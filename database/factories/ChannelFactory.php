@@ -20,7 +20,7 @@ class ChannelFactory extends Factory
             'name' => fake()->name(10),
             'logo_url' => 'http://example.com',
             'total_subscribers' => random_int(0, 5000),
-            'country' => 'Bangladesh',
+            'country' => fake()->state(),
         ];
     }
 }

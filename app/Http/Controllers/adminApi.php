@@ -56,7 +56,7 @@ class adminApi extends Controller
     return $user_query->get();
   }
 
-  // Get all users
+  // Get all active users
   public function getActiveUsers(Request $request) {
     $token_query = PersonalAccessToken::where('last_used_at', '>=', now()->subMinute(2))->distinct('tokenable_id');
     if (isset($request->limit)) {
@@ -66,7 +66,7 @@ class adminApi extends Controller
     $tokens = $token_query->get();
     $active_users = collect();
     foreach ($tokens as $token) {
-      $active_users->push($token->tokenable);
+      $active_users->push($token->tokenable()->with('channel')->get());
     }
     return $active_users;
   }

@@ -1,4 +1,5 @@
 <?php
+use Laravel\Sanctum\PersonalAccessToken;
 use App\Models\User;
 use App\Models\Channel;
 use App\Models\Category;
@@ -72,7 +73,51 @@ test('Get all users with pagination', function () {
   $response->assertJsonCount(2, 'data');
 });
 
-test('Get all active users with pagination', function () {});
+test('Get all active users with pagination', function () {
+  if(!env('USER_ACTIVE_STATUS', true)){
+    $this->markTestSkipped('Due to ENV variable USER_ACTIVE_STATUS is false');
+  }
+  $user1 = User::factory()->create();
+  $user2 = User::factory()->create();
+  $channel1 = Channel::factory()->create(['id' => $user1->id]);
+  $channel2 = Channel::factory()->create(['id' => $user2->id]);
+
+  $token1 = $user1->createToken('Test Token 1')->plainTextToken;
+  $token2 = $user2->createToken('Test Token 2')->plainTextToken;
+  PersonalAccessToken::findToken($token1)->forceFill([
+    'last_used_at' => now(),
+  ])->save();
+  PersonalAccessToken::findToken($token2)->forceFill([
+    'last_used_at' => now(),
+  ])->save();
+  $response = $this->get('/api/c-panel/dashboard/users/active');
+  $response->assertOk();
+  $response->assertJsonCount(2, 'data');
+  $response->assertJsonFragment([
+    'id' => $user1->id,
+    'email' => $user1->email,
+  ]);
+  $response->assertJsonFragment([
+    'id' => $user2->id,
+    'email' => $user2->email,
+  ]);
+
+  PersonalAccessToken::findToken($token1)->forceFill([
+    'last_used_at' => now()->subMinutes(3),
+  ])->save();
+
+  $response = $this->get('/api/c-panel/dashboard/users/active');
+  $response->assertOk();
+  $response->assertJsonCount(1, 'data');
+  $response->assertJsonMissing([
+    'id' => $user1->id,
+    'email' => $user1->email,
+  ]);
+  $response->assertJsonFragment([
+    'id' => $user2->id,
+    'email' => $user2->email,
+  ]);
+});
 
 test('Get all new users with pagination', function () {
   $oldUsers = User::factory(5)->create(['created_at' => now()->subDays(3)]);
