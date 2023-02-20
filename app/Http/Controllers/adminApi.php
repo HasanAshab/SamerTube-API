@@ -58,17 +58,17 @@ class adminApi extends Controller
 
   // Get all active users
   public function getActiveUsers(Request $request) {
-    $token_query = PersonalAccessToken::where('last_used_at', '>=', now()->subMinute(2))->distinct('tokenable_id');
+    $token_query = PersonalAccessToken::with('tokenable.channel')->where('last_used_at', '>=', now()->subMinute(2));
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
       $token_query->offset($offset)->limit($request->limit);
     }
     $tokens = $token_query->get();
-    $active_users = collect();
-    foreach ($tokens as $token) {
-      $active_users->push($token->tokenable()->with('channel')->get());
-    }
-    return $active_users;
+    $users = collect();
+    $tokens->each(function ($token) use ($users){
+      $users->push($token->tokenable);
+    });
+    return $users;
   }
 
   // Get all new users

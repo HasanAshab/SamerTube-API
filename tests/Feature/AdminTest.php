@@ -90,13 +90,9 @@ test('Get all active users with pagination', function () {
   PersonalAccessToken::findToken($token2)->forceFill([
     'last_used_at' => now(),
   ])->save();
-  $response = $this->get('/api/c-panel/dashboard/users/active');
+  $response = $this->get('/api/c-panel/dashboard/users/active?offset=1&limit=1');
   $response->assertOk();
-  $response->assertJsonCount(2, 'data');
-  $response->assertJsonFragment([
-    'id' => $user1->id,
-    'email' => $user1->email,
-  ]);
+  $response->assertJsonCount(1, 'data');
   $response->assertJsonFragment([
     'id' => $user2->id,
     'email' => $user2->email,
