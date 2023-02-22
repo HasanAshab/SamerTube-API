@@ -11,9 +11,6 @@ use App\Models\Reply;
 beforeEach(function() {
   $this->user = User::factory()->create();
   Channel::factory()->create(['id' => $this->user->id]);
-  
-  $this->admin = User::factory()->create(['is_admin' => 1]);
-  Channel::factory()->create(['id' => $this->admin->id]);
 });
 
 
@@ -26,7 +23,8 @@ test('User can report video', function () {
 });
 
 test('User can report channel', function () {
-  $response = $this->actingAs($this->user)->postJson('api/report/channel/'.$this->admin->id, ['reason' => 'This content is really harmful for child!']);
+  $channel = Channel::factory()->create();
+  $response = $this->actingAs($this->user)->postJson('api/report/channel/'.$channel->id, ['reason' => 'This content is really harmful for child!']);
   $response->assertStatus(200);
   $this->assertDatabaseCount('reports', 1);
 });
@@ -39,14 +37,39 @@ test('User can report post', function () {
 });
 
 test('User can report comment', function () {
-  $comment = Comment::factory()->createQuietly();
+  $post = Post::factory()->createQuietly([
+    'channel_id' => $this->user->id,
+    'visibility' => 'public'
+  ]);
+  $comment = Comment::factory()->createQuietly([
+    'commenter_id' => $this->user->id,
+    'commentable_id' => $post->id,
+    'commentable_type' => get_class($post),
+    'text' => 'This is a test comment',
+  ]);
   $response = $this->actingAs($this->user)->postJson('api/report/comment/'.$comment->id, ['reason' => 'This content is really harmful for child!']);
   $response->assertStatus(200);
   $this->assertDatabaseCount('reports', 1);
 });
 
 test('User can report reply', function () {
-  $reply = Reply::factory()->createQuietly();
+  $post = Post::factory()->createQuietly([
+    'channel_id' => $this->user->id,
+    'visibility' => 'public'
+  ]);
+  $comment = Comment::factory()->createQuietly([
+    'commenter_id' => $this->user->id,
+    'commentable_id' => $post->id,
+    'commentable_type' => get_class($post),
+    'text' => 'This is a test comment',
+  ]);
+  $reply = Reply::factory()->createQuietly([
+    'replier_id' => $this->user->id,
+    'comment_id' => $comment->id,
+    'text' => 'This is a test comment',
+  ]);
+  
+  
   $response = $this->actingAs($this->user)->postJson('api/report/reply/'.$reply->id, ['reason' => 'This content is really harmful for child!']);
   $response->assertStatus(200);
   $this->assertDatabaseCount('reports', 1);
@@ -54,12 +77,11 @@ test('User can report reply', function () {
 
 
 test('Reporting a content multiple times updates report reason', function () {
-  $chategory = Category::factory()->create();
-  $video = Video::factory()->createQuietly();
+  $post = Post::factory()->createQuietly();
   $data = ['reason' => 'This content is really harmful for child!'];
-  $response = $this->actingAs($this->user)->postJson('api/report/video/'.$video->id, $data);
+  $response = $this->actingAs($this->user)->postJson('api/report/post/'.$post->id, $data);
   $data['reason'] = 'This content is really very harmful for child!';
-  $response = $this->actingAs($this->user)->postJson('api/report/video/'.$video->id, $data);
+  $response = $this->actingAs($this->user)->postJson('api/report/post/'.$post->id, $data);
   $response->assertStatus(200);
   $this->assertDatabaseCount('reports', 1);
   $this->assertDatabaseHas('reports', $data);

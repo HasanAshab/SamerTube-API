@@ -27,4 +27,8 @@ class ReplyPolicy
   public function delete(User $user, Reply $reply){
     return $user->is_admin || $user->id === $reply->replier_id || $reply->video->channel_id === $user->id;
   }
+  
+  public function report(User $user, Reply $reply){
+    return $this->read($user, $reply);
+  }
 }

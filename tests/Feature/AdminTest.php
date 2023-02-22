@@ -188,7 +188,7 @@ test('Get top reported content with pagination', function () {
     'reportable_id' => $post2->id,
     'reportable_type' => Post::class
   ]);
-  $response = $this->getJson('api/c-panel/dashboard/top/reports/post?offset=1&limit=1');
+  $response = $this->getJson('api/c-panel/dashboard/reports/post/top?offset=1&limit=1');
   //dd($response->decodeResponseJson());
   $response->assertStatus(200);
   $response->assertJsonCount(1, 'data');

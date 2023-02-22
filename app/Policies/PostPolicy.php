@@ -27,6 +27,10 @@ class PostPolicy
     return $user->is_admin || $user->id === $post->channel_id;
   }
   
+  public function report(User $user, Post $post){
+    return $this->read($user, $post);
+  }
+  
   public function review(User $user, Post $post){
     return $post->type !== 'shared' && ($user->is_admin || $post->visibility === "public" || $post->channel_id === $user->id);
   }

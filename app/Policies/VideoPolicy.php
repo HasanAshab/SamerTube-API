@@ -21,6 +21,10 @@ class VideoPolicy
     return $user->is_admin || $user->id === $video->channel_id;
   }
   
+  public function report(User $user, Video $video){
+    return $this->watch($user, $video);
+  }
+ 
   public function review(User $user, Video $video){
     return $user->is_admin || $video->visibility === "public" || $video->channel_id === $user->id;
   }

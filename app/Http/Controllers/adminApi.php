@@ -91,52 +91,6 @@ class adminApi extends Controller
     return $admin_query->get();
   }
 
-  // Get all reports
-  public function getReports(Request $request) {
-    $report_query = Report::with('reportable')->latest();
-    if (isset($request->limit)) {
-      $offset = isset($request->offset)?$request->offset:0;
-      $report_query->offset($offset)->limit($request->limit);
-    }
-    return $report_query->get();
-  }
-  
-  // Get all reports of a specific content
-  public function getContentReports(Request $request, $type, $id) {
-    $model = match($type){
-      'video' => Video::class,
-      'post' => Post::class,
-      'channel' => Channel::class,
-      'comment' => Comment::class,
-      'reply' => Reply::class,
-      default => null
-    };
-    $report_query = Report::where('reportable_type', $model)->where('reportable_id', $id)->latest();
-    if (isset($request->limit)) {
-      $offset = isset($request->offset)?$request->offset:0;
-      $report_query->offset($offset)->limit($request->limit);
-    }
-    return $report_query->get();
-  }
-  
-  // Get top reported content
-  public function getTopReportedContent(Request $request, $type){
-    $model = match($type){
-      'video' => Video::class,
-      'post' => Post::class,
-      'channel' => Channel::class,
-      'comment' => Comment::class,
-      'reply' => Reply::class,
-      default => null
-    };
-
-    $report_query = Report::with('reportable')->select('reportable_id', 'reportable_type', DB::raw('count(*) as report_count'))->where('reportable_type', $model)->groupBy('reportable_id')->orderByDesc('report_count');
-    if (isset($request->limit)) {
-      $offset = isset($request->offset)?$request->offset:0;
-      $report_query->offset($offset)->limit($request->limit);
-    }   
-    return $report_query->get();
-  }
   // Give a user 'admin' role
   public function makeAdmin($id) {
     $user = User::find($id);

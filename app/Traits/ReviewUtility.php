@@ -61,4 +61,15 @@ trait ReviewUtility {
       ?$review->review
       :null;
   }
+  
+  public static function reviewedAt($id, $get_model = false){
+    $user_id = auth()->id();
+    $review = Review::where('reviewer_id', $user_id)->where('reviewable_type', get_called_class())->where('reviewable_id', $id)->first();
+    if($get_model){
+      return $review;
+    }
+    return ($review)
+      ?$review->review
+      :null;
+  }
 }

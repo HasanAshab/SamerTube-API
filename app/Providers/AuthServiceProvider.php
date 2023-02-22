@@ -7,10 +7,14 @@ use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvid
 use Illuminate\Auth\Notifications\ResetPassword;
 use App\Models\Post;
 use App\Models\Reply;
+use App\Models\Comment;
 use App\Models\Video;
+use App\Models\Channel;
 use App\Policies\PostPolicy;
 use App\Policies\ReplyPolicy;
+use App\Policies\CommentPolicy;
 use App\Policies\VideoPolicy;
+use App\Policies\ChannelPolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -22,7 +26,9 @@ class AuthServiceProvider extends ServiceProvider
   protected $policies = [
     Post::class => PostPolicy::class,
     Reply::class => ReplyPolicy::class,
+    Comment::class => CommentPolicy::class,
     Video::class => VideoPolicy::class,
+    Channel::class => ChannelPolicy::class,
   ];
 
   /**

@@ -253,35 +253,6 @@ class videoApi extends Controller
     return $videos;
   }
 
-  // Like and dislike on a video
-  public function review(Request $request, $video_id) {
-    $request->validate([
-      'review' => 'bail|required|in:0,1'
-    ]);
-    $video = Video::find($video_id);
-
-    if (!$request->user()->can('review', [Video::class, $video])) {
-      abort(405);
-    }
-    $reviewed = $video->reviewed();
-    if ($reviewed === $request->review) {
-      $video->unreview();
-      return response()->noContent();
-    }
-
-    $result = $video->review($request->review);
-    if ($result) {
-      return response()->noContent();
-    }
-    return response()->json(['success' => false], 451);
-  }
-
-  // Get what is the review of user
-  public function getReview(Request $request, $video_id) {
-    $review_code = Video::find($video_id)->reviewed();
-    return ['review' => $review_code];
-  }
-
   // Create comment on a video
   public function createComment(Request $request, $video_id) {
     $request->validate([
@@ -404,51 +375,7 @@ class videoApi extends Controller
     }
     abort(405);
   }
-
-  // Like or Dislike a comment
-  public function reviewComment(Request $request, $comment_id) {
-    $request->validate([
-      'review' => 'bail|required|in:0,1'
-    ]);
-    $comment = Comment::find($comment_id);
-
-    $reviewer_id = $request->user()->id;
-    if ($comment->video->visibility !== "public" && $comment->video->channel_id !== $reviewer_id) {
-      abort(405);
-    }
-
-    if ($comment->reviewed() === $request->review) {
-      $comment->unreview();
-      return response()->noContent();
-    }
-
-    $result = $comment->review($request->review);
-    if ($result) {
-      if ($comment->reviewed() === 1 && $comment->commenter_id !== $reviewer_id) {
-        $text = "👍 Someone liked your commented: &quot;".$comment->text."&quot;";
-        $notification = new Notification;
-        $notification->from = $reviewer_id;
-        $notification->for = $comment->commenter_id;
-        $notification->type = "like";
-        $notification->text = $text;
-        $notification->url = URL::signedRoute('comments.highlighted', ['video_id' => $comment->video_id, 'comment_id' => $comment_id]);
-        $notification->logo_url = URL::signedRoute('file.serve', ['type' => 'company-logo']);
-        $notification->save();
-        $commenter = User::find($comment->commenter_id);
-        $data = [
-          'subject' => str_replace('&quot;', '"', $text),
-          'name' => $commenter->channel->name,
-          'logo_url' => $commenter->channel->logo_url,
-          'text' => $comment->text,
-          'link' => $notification->url,
-        ];
-        $this->notify($commenter->email, $data, $notification->type);
-      }
-      return response()->noContent();
-    }
-    return response()->json(['success' => false], 451);
-  }
-
+  
   // Create reply on a comment
   public function createReply(Request $request, $comment_id) {
     $request->validate([
@@ -575,50 +502,6 @@ class videoApi extends Controller
       ], 451);
     }
     abort(405);
-  }
-
-  // Like or Dislike a Reply
-  public function reviewReply(Request $request, $reply_id) {
-    $request->validate([
-      'review' => 'bail|required|in:0,1'
-    ]);
-    $reply = Reply::find($reply_id);
-
-    $reviewer_id = $request->user()->id;
-    if ($reply->video->visibility !== "public" && $reply->video->channel_id !== $reviewer_id) {
-      abort(405);
-    }
-    if ($reply->reviewed() === $reply->review) {
-      $reply->unreview();
-      return response()->noContent();
-    }
-    $result = $reply->review($request->review);
-
-    if ($result) {
-      if ($reply->reviewed() === 1 && $reply->replier_id !== $reviewer_id) {
-        $text = "👍 Someone liked your commented: &quot;".$reply->text."&quot;";
-        $notification = new Notification;
-        $notification->from = $reviewer_id;
-        $notification->for = $reply->replier_id;
-        $notification->type = "like";
-        $notification->text = $text;
-        $notification->url = URL::signedRoute('replies.highlighted', ['comment_id' => $reply->comment_id, 'reply_id' => $reply->id]);
-        $notification->logo_url = URL::signedRoute('file.serve', ['type' => 'company-logo']);
-        $notification->save();
-        $replier = User::find($reply->commenter_id);
-        $data = [
-          'subject' => str_replace('&quot;', '"', $text),
-          'name' => $replier->channel->name,
-          'logo_url' => $replier->channel->logo_url,
-          'text' => $reply->text,
-          'link' => $notification->url,
-        ];
-        $this->notify($replier->email, $data, $notification->type);
-
-      }
-      return response()->noContent();
-    }
-    return response()->json(['success' => false], 451);
   }
 
   // Give heart on a comment or reply
@@ -1083,34 +966,7 @@ class videoApi extends Controller
     return response()->json(['success' => $result,
       'message' => 'Failed to update post!'], 451);
   }
-
-  // Like and dislike on a Community Post
-  public function reviewPost(Request $request, $id) {
-    $request->validate([
-      'review' => 'bail|required|in:0,1'
-    ]);
-    $post = Post::find($id);
-    if (!$request->user()->can('review', [Post::class, $post])) {
-      abort(405);
-    }
-    $reviewed = $post->reviewed();
-    if ($reviewed === $request->review) {
-      $post->unreview();
-      return response()->noContent();
-    }
-    $result = $post->review($request->review);
-    if ($result) {
-      return response()->noContent();
-    }
-    return response()->json(['success' => false], 451);
-  }
-
-  // Get what is the review of user on a post
-  public function getPostReview(Request $request, $id) {
-    $review_code = Post::find($id)->reviewed();
-    return ['review' => $review_code];
-  }
-
+  
   // Create comment on a Community Post
   public function createPostComment(Request $request, $id) {
     $request->validate([
