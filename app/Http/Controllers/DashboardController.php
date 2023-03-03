@@ -17,7 +17,7 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Carbon\Carbon;
 use DB;
 
-class DashboardApi extends Controller
+class DashboardController extends Controller
 {
   
   // Get all nessesary data for admin Dashboard

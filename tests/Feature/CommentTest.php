@@ -14,10 +14,62 @@ beforeEach(function() {
   Channel::factory()->create(['id' => $this->admin->id]);
 });
 
-test('User can reply on comment', function() {
-  
+test('Reply on comment', function() {
+  $post = Post::factory()->createQuietly([
+    'channel_id' => $this->admin->id,
+    'visibility' => 'public'
+  ]);
+  $comment = Comment::factory()->createQuietly([
+    'commenter_id' => $this->admin->id,
+    'commentable_id' => $post->id,
+    'commentable_type' => get_class($post)
+  ]);
+  $data = [
+    'text' => 'this is test reply'
+  ];
+  $response = $this->actingAs($this->user)->postJson('/api/reply/'.$comment->id, $data);
+  $response->assertStatus(200);
+  $this->assertDatabaseCount('replies', 1);
+});
+
+test('Update comment', function() {
+  $post = Post::factory()->createQuietly([
+    'channel_id' => $this->admin->id,
+    'visibility' => 'public'
+  ]);
+  $comment = Comment::factory()->createQuietly([
+    'commenter_id' => $this->user->id,
+    'commentable_id' => $post->id,
+    'commentable_type' => get_class($post)
+  ]);
+  $data = [
+    'text' => 'I updated that'
+  ];
+  $response = $this->actingAs($this->user)->putJson('/api/comment/post/'.$comment->id, $data);
+  $response->assertStatus(200);
+  $this->assertDatabaseHas('comments', $data);
+});
+
+test('Delete comment', function() {
+  $post = Post::factory()->createQuietly([
+    'channel_id' => $this->admin->id,
+    'visibility' => 'public'
+  ]);
+  $comment = Comment::factory()->createQuietly([
+    'commenter_id' => $this->user->id,
+    'commentable_id' => $post->id,
+    'commentable_type' => get_class($post)
+  ]);
+  $response = $this->actingAs($this->user)->deleteJson('/api/comment/post/'.$comment->id);
+  $response->assertStatus(200);
+  $this->assertDatabaseCount('comments', 0);
+});
+
+test('Heart on comment', function() {
 
 });
+
+
 
 // Video
 
@@ -32,7 +84,7 @@ test('User can comment on public post', function() {
     'text' => 'This is a test comment'
   ];
   $response = $this->actingAs($this->user)->postJson('/api/comment/post/'.$post->id, $data);
-  $response->assertStatus(204);
+  $response->assertStatus(200);
 });
 
 test('User can\'t comment on others scheduled post', function() {
@@ -58,7 +110,7 @@ test('User can comment on their scheduled post', function() {
     'text' => 'This is a test comment'
   ];
   $response = $this->actingAs($this->user)->postJson('/api/comment/post/'.$post->id, $data);
-  $response->assertStatus(204);
+  $response->assertStatus(200);
 });
 
 test('Admin can comment on others scheduled post', function() {
@@ -71,7 +123,7 @@ test('Admin can comment on others scheduled post', function() {
     'text' => 'This is a test comment'
   ];
   $response = $this->actingAs($this->admin)->postJson('/api/comment/post/'.$post->id, $data);
-  $response->assertStatus(204);
+  $response->assertStatus(200);
 });
 
 test('User can\'t comment on shared post', function() {

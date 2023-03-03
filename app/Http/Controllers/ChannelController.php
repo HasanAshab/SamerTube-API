@@ -6,14 +6,12 @@ use Illuminate\Support\Facades\URL;
 use App\Rules\CSVRule;
 use Illuminate\Http\Request;
 use App\Models\Channel;
-use App\Models\Video;
-use App\Models\Post;
 use App\Models\Subscriber;
 use App\Models\Notification;
 use App\Mail\SubscribedMail;
 use Mail;
 
-class channelApi extends Controller
+class ChannelController extends Controller
 {
 
   //Get own channel details
@@ -60,7 +58,7 @@ class channelApi extends Controller
     return response()->json([
       'success' => false,
       'message' => 'Failed to update channel!'
-    ], 451);
+    ], 422);
   }
 
   // Subscribe a channel
@@ -87,33 +85,16 @@ class channelApi extends Controller
         return ['success' => true,
           'message' => 'Subscribed!'];
       }
-      return response()->json(['success' => false], 451);
+      return response()->json(['success' => false], 422);
     }
     $subscriber = new Subscriber;
     $subscriber->channel_id = $channel_id;
     $subscriber->video_id = $video_id;
     $result = $subscriber->save();
     if ($result) {
-      $channel->increment('total_subscribers', 1);
-      $notification = new Notification;
-      $notification->from = $user_id;
-      $notification->for = $channel_id;
-      $notification->url = route('channel.show', ['id' => $user_id]);
-      $notification->logo_url = auth()->user()->channel->logo_url;
-      $notification->type = "subscribe";
-      $notification->text = "New subscriber: ".auth()->user()->channel->name;
-      $notification->save();
-      $data = [
-        'subject' => $notification->text,
-        'subscriber_name' => auth()->user()->channel->name,
-        'subscriber_logo_url' => auth()->user()->channel->logo_url,
-        'link' => $notification->url
-      ];
-      Mail::to($channel->user->email)->send(new SubscribedMail($data));
-      return ['success' => true,
-        'message' => 'Subscribed!'];
+      return ['success' => true, 'message' => 'Subscribed!'];
     }
-    return response()->json(['success' => false], 451);
+    return response()->json(['success' => false], 422);
   }
 
   // Unsubscribe a channel
@@ -140,45 +121,7 @@ class channelApi extends Controller
       return ['success' => true,
         'message' => 'Unsubscribed!'];
     }
-    return response()->json(['success' => false], 451);
-  }
-
-  // Get videos of a channel [no param for own videos]
-  public function getChannelVideos(Request $request, $id = null) {
-    if(!auth()->check() && is_null($id)){
-      abort(405);
-    }
-    $id = $id??$request->user()->id;
-    $video_query = auth()->check() && ($request->user()->is_admin || $request->user()->id === $id)
-      ?Video::where('channel_id', $id)->latest()
-      :Video::where('channel_id', $id)->where('visibility', 'public')->latest();
-    if(isset($request->limit)){
-      $offset = isset($request->offset)
-        ?$request->offset
-        :0;
-      $video_query->offset($offset)->limit($request->limit);
-    }
-    $videos = $video_query->get();
-    return $videos;
-  } 
-  
-  // Get posts of a channel [no param for own posts]
-  public function getChannelPosts(Request $request, $id = null) {
-    if(!auth()->check() && is_null($id)){
-      abort(405);
-    }
-    $id = $id??$request->user()->id;
-    $post_query = auth()->check() && ($request->user()->is_admin || $request->user()->id === $id)
-      ?Post::with('polls')->where('channel_id', $id)->latest()
-      :Post::with('polls')->where('channel_id', $id)->where('visibility', 'public')->latest();
-    if(isset($request->limit)){
-      $offset = isset($request->offset)
-        ?$request->offset
-        :0;
-      $post_query->offset($offset)->limit($request->limit);
-    }
-    $posts = $post_query->get();
-    return $posts;
+    return response()->json(['success' => false], 422);
   }
 
   // Get all Subscribed channel id and name

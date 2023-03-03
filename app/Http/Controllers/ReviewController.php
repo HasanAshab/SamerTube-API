@@ -12,7 +12,7 @@ use App\Models\Review;
 class ReviewController extends Controller
 {
   // Like and dislike on a content
-  public function review(Request $request, $type, $id) {
+  public function __invoke(Request $request, $type, $id) {
     $request->validate([
       'review' => 'bail|required|in:0,1'
     ]);

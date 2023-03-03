@@ -74,9 +74,6 @@ test('Get all users with pagination', function () {
 });
 
 test('Get all active users with pagination', function () {
-  if(!env('USER_ACTIVE_STATUS', true)){
-    $this->markTestSkipped('Due to ENV variable USER_ACTIVE_STATUS is false');
-  }
   $user1 = User::factory()->create();
   $user2 = User::factory()->create();
   $channel1 = Channel::factory()->create(['id' => $user1->id]);

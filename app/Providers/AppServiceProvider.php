@@ -23,11 +23,9 @@ class AppServiceProvider extends ServiceProvider
   * @return void
   */
   public function boot() {
-    if (!env('USER_ACTIVE_STATUS', false)) {
-      // Use customized personal access token model
-      Sanctum::usePersonalAccessTokenModel(
-        PersonalAccessToken::class
-      );
-    }
+    // Use customized personal access token model
+    Sanctum::usePersonalAccessTokenModel(
+      PersonalAccessToken::class
+    );
   }
 }

@@ -16,7 +16,11 @@ class Reply extends Model
 
   protected $appends = ['edited'];
   protected $hidden = ['updated_at'];
-
+  protected $fillable = [
+    'text',
+    'comment_id',
+    'replier_id'
+  ];
   public function video() {
     return $this->belongsToThrough(Video::class, Comment::class);
   }

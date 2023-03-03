@@ -1,6 +1,6 @@
 <?php
-
 namespace App\Http\Controllers;
+
 use Illuminate\Support\Facades\URL;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -19,7 +19,7 @@ use Socialite;
 use Illuminate\Support\Facades\Notification;
 
 
-class AuthApi extends Controller
+class AuthController extends Controller
 {
 
   // Create Account manually

@@ -6,11 +6,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Artisan;
 
-test('User can register manually', function () {
+test('User can register manually and send verification email', function () {
   $fake = Event::fake();
   DB::setEventDispatcher($fake);
   $data = [
@@ -24,6 +25,17 @@ test('User can register manually', function () {
   $response->assertStatus(200);
   $this->assertDatabaseHas('users', ['email' => $data['email']]);
   $this->assertDatabaseHas('channels', ['name' => $data['name']]);
+});
+
+test('Resend verification email', function () {
+  Notification::fake();
+  $user = User::factory()->unverified()->create();
+  $response = $this->actingAs($user)->postJson(route('verification.send'));
+  Notification::assertSentTo(
+    [$user],
+    VerifyEmail::class
+  );
+  $response->assertStatus(200);
 });
 
 test('Admin account can be created from artisan', function () {

@@ -11,7 +11,7 @@ use App\Models\User;
 class VerifyEmailController extends Controller
 {
 
-    public function __invoke(Request $request): RedirectResponse
+    public function verify(Request $request): RedirectResponse
     {
         $user = User::find($request->route('id'));
 
@@ -23,11 +23,11 @@ class VerifyEmailController extends Controller
             event(new Verified($user));
         }
 
-        return redirect(env('FRONT_URL') . '/email/verify/success');
+        return redirect(config('app.frontend_url') . '/email/verify/success');
     }
     
-    public function resend(Request $request){
-      $request->user()->sendEmailVerificationNotification();
+    public function resend(){
+      auth()->user()->sendEmailVerificationNotification();
       return ['success' => true, 'message'=>'Verification link sent!'];
     }
 }
