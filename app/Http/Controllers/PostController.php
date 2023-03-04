@@ -156,6 +156,11 @@ class PostController extends Controller
       $post_query->offset($offset)->limit($request->limit);
     }
     $posts = $post_query->get();
+    if(auth()->check()){
+      $posts->each(function ($post){
+        $post->reviewed = $post->reviewed();
+      });
+    }
     return $posts;
   }
 

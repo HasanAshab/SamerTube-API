@@ -210,6 +210,7 @@ test('Post total votes resolved as rate and User can see which poll they are vot
         'comment_count',
         'created_at',
         'edited',
+        'reviewed',
         'polls' => [
           '*' => [
             'id',
