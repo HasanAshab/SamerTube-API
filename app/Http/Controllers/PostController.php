@@ -143,9 +143,12 @@ class PostController extends Controller
       abort(405);
     }
     $id = $id??$request->user()->id;
-    $post_query = auth()->check() && ($request->user()->is_admin || $request->user()->id === $id)
-      ?Post::with('polls')->where('channel_id', $id)->latest()
-      :Post::with('polls')->where('channel_id', $id)->where('visibility', 'public')->latest();
+    $post_query = Post::with('polls')->where('channel_id', $id)->latest();
+    
+    if(!auth()->check() || !($request->user()->is_admin || $request->user()->id === $id)){
+      $post_query->where('visibility', 'public');
+    }
+    
     if(isset($request->limit)){
       $offset = isset($request->offset)
         ?$request->offset

@@ -176,3 +176,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('videos/previous/rankedby/views', 'getPreviousRankedVideos');
   });
 });
+
+
+use App\Mail\VideoUploadedMail;
+use Illuminate\Support\Facades\Mail;
+
+Route::get('test', function (){
+  Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail([]));
+});
