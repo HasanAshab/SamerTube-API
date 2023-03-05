@@ -11,6 +11,7 @@ use App\Models\Tag;
 use App\Models\History;
 use App\Events\Searched;
 use DB;
+use Illuminate\Support\Facades\Cache;
 
 class SearchController extends Controller
 {
@@ -98,31 +99,35 @@ class SearchController extends Controller
 
   // Get search suggestion
   public function suggestions(Request $request, $query = null) {
-    if(auth()->check()){
-      $history = History::where('user_id', $request->user()->id)->where('search_term', 'like', '%'.$query.'%')->select('search_term as suggestion', DB::raw('true as history'))->latest()->limit(20)->get();
-      if ($query === null) {
-        return $history;
-      }
+    $authUser = auth()->check();
+    $history = ($authUser)
+      ?History::where('user_id', $request->user()->id)->where('search_term', 'like', '%'.$query.'%')->select('search_term as suggestion', DB::raw('true as history'))->latest()->limit(20)->get()
+      :null;
+    
+    if ($authUser && $query === null) {
+      return $history;
     }
-    $titles = Video::when(!(auth()->check() || $request->user()->is_admin), function ($query) {
-      return $query->where('visibility', 'public');
-    })->where('title', 'like', '%'.$query.'%')->select('title as suggestion', DB::raw('false as history'))->get();
     
-    $tags = Tag::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->get();
-    $channels = Channel::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->get();
-    $playlists = Playlist::when(!$request->user()->is_admin, function ($query) {
-      return $query->where('visibility', 'public');
-    })->where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->get();
+    $cache = Cache::driver('database');
+    $suggestions = $cache->get('search:'.$query);
     
-    
-    $suggestions = collect()->merge($titles)->merge($tags)->merge($channels)->merge($playlists);
+    if (is_null($suggestions)){
+      $titles = Video::where('title', 'like', '%'.$query.'%')->select('title as suggestion', DB::raw('false as history'))->limit(5)->get();
+      $tags = Tag::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
+      $channels = Channel::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
+      $playlists = Playlist::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
+      $suggestions = collect()->merge($titles)->merge($tags)->merge($channels)->merge($playlists);
+      $cache->put('search:'.$query, $suggestions, 24 * 60);
+    }
     
     $mixed_suggestions = collect()->merge($history)->merge($suggestions)->take(20);
 
     $mixed_suggestions = $mixed_suggestions->sortBy(function ($suggestion) use ($query){
       return levenshtein($query, $suggestion->suggestion);
     });
-    return $mixed_suggestions->values();
+    $results = $mixed_suggestions->values();
+
+    return $results;
   }
 
   protected function rank($collection, $sort_by, $type) {
