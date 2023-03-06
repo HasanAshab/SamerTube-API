@@ -181,6 +181,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
 use App\Mail\VideoUploadedMail;
 use Illuminate\Support\Facades\Mail;
 
-Route::get('test', function (){
-  Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail([]));
+Route::get('test/{user}', function (App\Models\User $user){
+  return $user;
 });

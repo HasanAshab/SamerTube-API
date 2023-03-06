@@ -11,7 +11,6 @@ use App\Models\Tag;
 use App\Models\History;
 use App\Events\Searched;
 use DB;
-use Illuminate\Support\Facades\Cache;
 
 class SearchController extends Controller
 {
@@ -108,8 +107,7 @@ class SearchController extends Controller
       return $history;
     }
     
-    $cache = Cache::driver('database');
-    $suggestions = $cache->get('search:'.$query);
+    $suggestions = cache()->get('search:'.$query);
     
     if (is_null($suggestions)){
       $titles = Video::where('title', 'like', '%'.$query.'%')->select('title as suggestion', DB::raw('false as history'))->limit(5)->get();
@@ -117,7 +115,7 @@ class SearchController extends Controller
       $channels = Channel::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
       $playlists = Playlist::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
       $suggestions = collect()->merge($titles)->merge($tags)->merge($channels)->merge($playlists);
-      $cache->put('search:'.$query, $suggestions, 24 * 60);
+      cache()->put('search:'.$query, $suggestions, 24 * 60);
     }
     
     $mixed_suggestions = collect()->merge($history)->merge($suggestions)->take(20);
