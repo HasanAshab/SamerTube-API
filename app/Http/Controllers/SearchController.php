@@ -107,16 +107,15 @@ class SearchController extends Controller
       return $history;
     }
     
-    $suggestions = cache()->get('search:'.$query);
-    
-    if (is_null($suggestions)){
+    $suggestions = cache()->get('suggestion:'.$query, function () use ($query){
       $titles = Video::where('title', 'like', '%'.$query.'%')->select('title as suggestion', DB::raw('false as history'))->limit(5)->get();
       $tags = Tag::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
       $channels = Channel::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
       $playlists = Playlist::where('name', 'like', '%'.$query.'%')->select('name as suggestion', DB::raw('false as history'))->limit(5)->get();
       $suggestions = collect()->merge($titles)->merge($tags)->merge($channels)->merge($playlists);
-      cache()->put('search:'.$query, $suggestions, 24 * 60);
-    }
+      cache()->put('suggestion:'.$query, $suggestions, 24 * 60);
+      return $suggestions;
+    });
     
     $mixed_suggestions = collect()->merge($history)->merge($suggestions)->take(20);
 
