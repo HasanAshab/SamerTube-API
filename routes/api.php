@@ -39,7 +39,7 @@ Route::group([
   Route::get('google/callback', 'loginWithGoogle');
   Route::post('forgot-password', 'sentForgotPasswordLink');
   Route::post('reset-password', 'resetPassword');
-  Route::middleware('auth:sanctum')->group(function () {
+  Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('profile', 'profile')->middleware('wrapApiData');
     Route::get('is-admin', 'isAdmin')->middleware('wrapApiData');
     Route::post('change-password', 'changePassword');
@@ -126,7 +126,12 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   Route::post('view/{id}/{time}', [VideoController::class, 'setViewWatchTime']);
   Route::apiResource('video', VideoController::class)->only(['store', 'update', 'destroy']);
 
+  Route::post('history/watch/{save_history}', [HistoryController::class, 'changeWatchHistorySettings'])->where('save_history', '[0-1]');
+  Route::post('history/search/{save_history}', [HistoryController::class, 'changeSearchHistorySettings'])->where('save_history', '[0-1]');
+  Route::delete('history/watch/all', [HistoryController::class, 'deleteAllWatchHistory']);
+  Route::delete('history/search/all', [HistoryController::class, 'deleteAllSearchHistory']);
   Route::apiResource('history', HistoryController::class)->only(['index', 'destroy']);
+  
   Route::post('notification/hide/{notification_id}', [NotificationController::class, 'hideNotification']);
     
   Route::controller(CommentController::class)->group(function () {

@@ -21,7 +21,9 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
   protected $fillable = [
     'email',
     'google_id',
-    'password'
+    'password',
+    'search_history',
+    'watch_history',
   ];
 
   /**

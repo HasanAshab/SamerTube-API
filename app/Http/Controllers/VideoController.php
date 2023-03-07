@@ -132,7 +132,7 @@ class VideoController extends Controller
     if (!$request->user()->can('watch', [Video::class, $video]) || (!auth()->check() && $video->visibility !== 'public')) {
       abort(405);
     }
-    if(auth()->check()){
+    if(auth()->check() && $request->user()->watch_history){
       event(new Watched(auth()->user(), $id));
     }
     $video->author = auth()->check() && ($video->channel_id === $request->user()->id);

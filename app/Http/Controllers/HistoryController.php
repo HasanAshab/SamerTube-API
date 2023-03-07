@@ -43,5 +43,38 @@ class HistoryController extends Controller
     abort(405);
   }
   
+  // Add to routes..
+  
+  public function changeWatchHistorySettings($save_history){
+    $result = auth()->user()->update([
+      'watch_history' => $save_history
+    ]);
+    return $result
+      ?['success' => true]
+      :response()->json(['success' => false], 422);
+  }
+  
+  public function changeSearchHistorySettings($save_history){
+    $result = auth()->user()->update([
+      'search_history' => $save_history
+    ]);
+    return $result
+      ?['success' => true]
+      :response()->json(['success' => false], 422);
+  }
+  
+  public function deleteAllWatchHistory(){
+    $result = History::where('user_id', auth()->id())->whereNotNull('video_id')->delete();
+    return $result
+      ?['success' => true]
+      :response()->json(['success' => false], 422);
+  }
+  
+  public function deleteAllSearchHistory(){
+    $result = History::where('user_id', auth()->id())->whereNotNull('search_term')->delete();
+    return $result
+      ?['success' => true]
+      :response()->json(['success' => false], 422);
+  }
   
 }

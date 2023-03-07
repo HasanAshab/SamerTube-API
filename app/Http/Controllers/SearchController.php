@@ -24,14 +24,15 @@ class SearchController extends Controller
       'date_range' => 'bail|required|string|in:anytime,hour,day,week,month,year',
     ]);
     
-    if(auth()->check()){
+    if(auth()->check() && $request->user()->search_history){
       event(new Searched(auth()->user(), $term));
     }
+    
     $offset = isset($request->offset)
       ?$request->offset
       :0;
-    
-    if ($request->type === 'all' || $request->type === 'video') {
+    $type = $request->type;
+    if ($type === 'all' || $type === 'video') {
       $video_query = Video::search($term, true, true)->date($request->date_range);
       if (!(auth()->check() && $request->user()->is_admin)) {
         $video_query->where('visibility', 'public');
@@ -48,11 +49,12 @@ class SearchController extends Controller
           $video->unmatched = levenshtein($term, $video->title);
         }
       });
-      if ($request->type === 'video') {
+      if ($type === 'video') {
         $results = collect($videos);
       }
     }
-    if ($request->type === 'all' || $request->type === 'playlist') {
+    
+    if ($type === 'all' || $type === 'playlist') {
       $playlist_query = Playlist::search($term, false, true)->date($request->date_range);
       if (!(auth()->check() && $request->user()->is_admin)) {
         $playlist_query->where('visibility', 'public');
@@ -66,11 +68,12 @@ class SearchController extends Controller
           $playlist->unmatched = levenshtein($term, $playlist->name);
         }
       });
-      if ($request->type === 'playlist') {
+      if ($type === 'playlist') {
         $results = collect($playlists);
       }
     }
-    if ($request->type === 'all' || $request->type === 'channel') {
+    
+    if ($type === 'all' || $type === 'channel') {
       $channels = Channel::search($term, true, true)->date($request->date_range)->get();
       $channels->each(function ($channel) use ($term) {
         $channel->type = 'channel';
@@ -80,15 +83,17 @@ class SearchController extends Controller
           $channel->unmatched = levenshtein($term, $channel->name);
         }
       });
-      if ($request->type === 'channel') {
+      if ($type === 'channel') {
         $results = collect($channels);
       }
     }
 
-    if ($request->type === 'all') {
+    if ($type === 'all') {
       $results = collect()->merge($videos)->merge($playlists)->merge($channels);
     }
-    $results = $this->rank($results, $request->sort, $request->type);
+    $results = $this->rank($results, $request->sort, $type);
+    
+    
     
     if(isset($request->limit)){
       return $results->slice($offset, $request->limit)->values();
