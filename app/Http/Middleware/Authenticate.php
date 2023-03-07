@@ -16,7 +16,7 @@ class Authenticate extends Middleware
    public function handle($request, Closure $next, ...$guard){
     //check here if the user is authenticated
     if (!$this->auth->user()){
-      abort(401);
+      return response()->json(['success' => false, 'message' => 'Unauthenticated user!'], 401);
     }
     return $next($request);
    }
