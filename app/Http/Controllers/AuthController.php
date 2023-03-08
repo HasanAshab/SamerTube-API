@@ -25,9 +25,9 @@ class AuthController extends Controller
   // Create Account manually
   public function register(Request $request) {
     $request->validate([
-      'name' => 'bail|required',
-      'email' => 'bail|required|email|unique:users,email',
-      'password' => 'bail|required|confirmed|min:8',
+      'name' => 'required',
+      'email' => 'required|email|unique:users,email',
+      'password' => 'required|confirmed|min:8',
     ]);
     $user = User::create([
       'email' => $request->email,
@@ -37,10 +37,11 @@ class AuthController extends Controller
       'name' => $request->name,
       'country' => 'Bangladesh'//Location::get($request->ip())->countryName);
     ]);
+    $token = $user->createToken("API TOKEN", ['user'])->plainTextToken;
+    
     if ($user && $channel) {
       event(new Registered($user));
-      return ['success' => true,
-        'message' => 'Your account is successfully created!'];
+      return response()->json(['success' => true, 'message' => 'Verification email sent!'], 200)->header('Authorization', 'Bearer '.$token);
     }
     return response()->json(['success' => false,
       'message' => 'Failed to create account!'], 451);
@@ -49,20 +50,23 @@ class AuthController extends Controller
   // Login to Account manually
   public function login(Request $request) {
     $request->validate([
-      'email' => 'bail|required|email',
-      'password' => 'bail|required',
+      'email' => 'required|email',
+      'password' => 'required',
     ]);
-    $user = User::where('email', $request->email)->first();
-    if (!$user || !Hash::check($request->password, $user->password)) {
-      return response()->json(['success' => false, 'message' => 'Credentials not match!'], 401);
-    }
-    $token = ($user->is_admin)
-    ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
-    :$user->createToken("API TOKEN", ['user'])->plainTextToken;
 
-    return ['success' => true,
-      'access_token' => $token];
+    $user = User::where('email', $request->email)->first();
+
+    if (!$user || !Hash::check($request->password, $user->password)) {
+      return response()->json(['message' => 'Invalid email or password'], 400);
+    }
+
+    $token = ($user->is_admin)
+      ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
+      :$user->createToken("API TOKEN", ['user'])->plainTextToken;
+    return response()->json(['success' => true], 200)->header('Authorization', 'Bearer '.$token);
+    
   }
+
 
   // Reditect user to select an owned email for register or login
   public function googleRedirect() {
@@ -81,10 +85,7 @@ class AuthController extends Controller
       $token = ($existingUser->is_admin)
       ?$existingUser->createToken("API TOKEN", ['admin'])->plainTextToken
       :$existingUser->createToken("API TOKEN", ['user'])->plainTextToken;
-      return [
-        'success' => true,
-        'access_token' => $token
-      ];
+      return response()->json(['success' => true], 200)->header('Authorization', 'Bearer '.$token);
     } else {
       $createUser = User::create([
         'email' => $user->email,
@@ -96,10 +97,7 @@ class AuthController extends Controller
         Event::forget(Registered::class);
         Event::listen(Registered::class, SendNewUserJoinedNotificationToAdmins::class);
         event(new Registered($user));
-        return [
-          'success' => true,
-          'access_token' => $createUser->createToken("API TOKEN", ['user'])->plainTextToken
-        ];
+        return response()->json(['success' => true], 200)->header('Authorization', 'Bearer '.$token);
       }
       return response()->json(['success' => false,
         'message' => 'Failed to create account!'], 451);
@@ -163,24 +161,24 @@ class AuthController extends Controller
     }
     return response()->json(['success' => false, 'message' => 'Failed to change password!']);
   }
-  public function profile(){
+  public function profile() {
     return auth()->user();
   }
-  
-  public function isAdmin(){
+
+  public function isAdmin() {
     return ['admin' => auth()->user()->is_admin];
   }
-  
+
   // Create new token
   public function refresh() {
     $user = auth()->user();
     $user->currentAccessToken()->delete();
     $token = ($user->is_admin)
-      ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
-      :$user->createToken("API TOKEN", ['user'])->plainTextToken;
+    ?$user->createToken("API TOKEN", ['admin'])->plainTextToken
+    :$user->createToken("API TOKEN", ['user'])->plainTextToken;
     return [
-        'success' => true,
-        'access_token' => $token
+      'success' => true,
+      'access_token' => $token
     ];
   }
 
