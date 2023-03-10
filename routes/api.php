@@ -96,6 +96,9 @@ Route::middleware('wrapApiData')->group(function () {
   Route::get('video/watch/{id}', [VideoController::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::get('search/{term?}', [SearchController::class, 'search']);
   Route::get('suggestions/{query?}', [SearchController::class, 'suggestions']);
+  Route::get('comment/{type}/{id}', [CommentController::class, 'index']);
+  Route::get('reply/{id}', [ReplyController::class, 'index']);
+  
 });
 
 
@@ -108,12 +111,10 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('video/liked', [VideoController::class, 'getLikedVideos'])->name('videos.liked');
     Route::get('watch-later', [PlaylistController::class, 'getWatchLaterVideos'])->name('watchLater.videos');
     Route::get('comment/highlighted/{video_id}/{comment_id}', [CommentController::class, 'getCommentsWithHighlighted'])->middleware('signed')->name('comments.highlighted');
-    Route::get('reply/{id}', [ReplyController::class, 'getReplies']);
     Route::get('reply/highlighted/{comment_id}/{reply_id}', [ReplyController::class, 'getRepliesWithHighlighted'])->middleware('signed')->name('replies.highlighted');
     Route::get('playlist', [PlaylistController::class, 'index']);
     Route::get('playlist/{id}', [PlaylistController::class, 'getPlaylistVideos'])->middleware('signed')->name('playlist.videos');
     Route::get('review/{type}/{id}', [ReviewController::class, 'getReview']);
-    Route::get('comment/{type}/{id}', [CommentController::class, 'getComments']);
     Route::get('vote/{id}', [PostController::class, 'getVotedPoll']);
   });
   
@@ -135,7 +136,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   Route::post('notification/hide/{notification_id}', [NotificationController::class, 'hideNotification']);
     
   Route::controller(CommentController::class)->group(function () {
-    Route::get('comment/{type}/{id}', 'index');
     Route::post('comment/{type}/{id}', 'store');
     Route::put('comment/{type}/{id}', 'update');
     Route::delete('comment/{type}/{id}', 'destroy');
@@ -143,7 +143,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   });
   
   Route::controller(ReplyController::class)->group(function () {
-    Route::get('comment/{id}', 'index');
     Route::post('reply/{id}', 'store');
     Route::put('reply/{id}', 'update');
     Route::delete('reply/{id}', 'destroy');
@@ -187,5 +186,9 @@ use App\Mail\VideoUploadedMail;
 use Illuminate\Support\Facades\Mail;
 
 Route::get('test', function (){
-  Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail([]));
+  //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail([]));
+ return App\Models\Post::factory()->createQuietly();
+ // $post->comment()
+
+  
 });

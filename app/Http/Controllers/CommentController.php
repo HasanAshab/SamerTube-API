@@ -12,23 +12,39 @@ class CommentController extends Controller
   
   // Get all comments of a specific content
   public function index(Request $request, $type, $id) {
+    $request->validate([
+      'sort' => 'required|in:top,newest'
+    ]);
     $Model = $this->getClassByType($type);
     $model = $Model::find($id);
-    if (!$request->user()->can('readComments', [$Model, $model])) {
+    $isLoggedIn = auth()->check();
+    if (($isLoggedIn && !$request->user()->can('readComments', [$Model, $model])) || $model->visibility !== 'public') {
       abort(405);
     }
-    $comment_query = $model->comments();
+    $comment_query = $model->comments()->with([
+      'commenter' => function ($query){
+        $query->select('id', 'name', 'logo_url');
+      },
+      'reviewed' => function ($query) use ($isLoggedIn){
+        if($isLoggedIn){
+          $query->select('id', 'review');
+        }
+      }
+    ]);
+    if($request->sort === 'top'){
+      $comment_query->orderByDesc('like_count')->orderByDesc('heart')->orderByDesc('reply_count');
+    }
     if (isset($request->limit)) {
       $offset = isset($request->offset)
-      ?$request->offset
-      :0;
+        ?$request->offset
+        :0;
       $comment_query->offset($offset)->limit($request->limit);
     }
-    $comments = $comment_query->get();
+    $comments = $comment_query->latest()->get();
+    
     foreach ($comments as $comment) {
-      $comment->review = $comment->reviewed();
       $comment->creator = ($comment->commenter_id === $model->channel_id);
-      $comment->author = ($comment->commenter_id === auth()->id());
+      $comment->author = $isLoggedIn || ($comment->commenter_id === auth()->id());
     }
     return $comments;
   }

@@ -23,9 +23,13 @@ class Comment extends Model
   public function commentable() {
     return $this->morphTo();
   }
-
+  
+  public function commenter(){
+    return $this->belongsTo(Channel::class);
+  }
+  
   public function replies() {
-    return $this->hasMany(Reply::class)->join('channels', 'channels.id', '=', 'replies.replier_id')->select('replies.*', 'channels.name', 'channels.logo_url')->orderByDesc('like_count')->latest();
+    return $this->hasMany(Reply::class);
   }
 
   protected function createdAt(): Attribute {

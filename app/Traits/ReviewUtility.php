@@ -14,6 +14,10 @@ trait ReviewUtility {
     return $this->morphMany(Review::class, 'reviewable');
   }
   
+  public function reviewed(){
+    return $this->morphOne(Review::class, 'reviewable')->where('reviewer_id', auth()->id());
+  }
+  
   public static function liked($limit = null, $offset = null){
     $review_query = Review::with('reviewable')->where('reviewable_type', get_called_class())->where('reviewer_id', auth()->id())->where('review', 1);
     if(!is_null($limit)){
@@ -51,17 +55,6 @@ trait ReviewUtility {
     return $result;
   }
 
-  public function reviewed($get_model = false){
-    $user_id = auth()->id();
-    $review = Review::where('reviewer_id', $user_id)->where('reviewable_type', get_class($this))->where('reviewable_id', $this->id)->first();
-    if($get_model){
-      return $review;
-    }
-    return ($review)
-      ?$review->review
-      :null;
-  }
-  
   public static function reviewedAt($id, $get_model = false){
     $user_id = auth()->id();
     $review = Review::where('reviewer_id', $user_id)->where('reviewable_type', get_called_class())->where('reviewable_id', $id)->first();

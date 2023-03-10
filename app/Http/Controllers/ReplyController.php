@@ -12,21 +12,39 @@ class ReplyController extends Controller
   // Get all replies of a specific comment
   public function index(Request $request, $id) {
     $comment = Comment::find($id);
-    if (!$request->user()->can('read', [Reply::class, $comment])) {
+    $isLoggedIn = auth()->check();
+    if (($isLoggedIn && !$request->user()->can('read', [Reply::class, $comment])) || $comment->commentable->visibility !== 'public') {
       abort(405);
     }
-    $reply_query = $comment->replies();
+    
+    if($isLoggedIn){
+      $relations = [
+        'replier' => function ($query){
+          $query->select('id', 'name', 'logo_url');
+        },
+        'reviewed' => function ($query) use ($isLoggedIn){
+          $query->select('id', 'review');
+        }
+      ];
+    }
+    else{
+      $relations = [
+        'replier' => function ($query){
+          $query->select('id', 'name', 'logo_url');
+        }
+      ];
+    }
+    $reply_query = $comment->replies()->with($relations);
     if (isset($request->limit)) {
       $offset = isset($request->offset)
       ?$request->offset
       :0;
       $reply_query->offset($offset)->limit($request->limit);
     }
-    $replies = $reply_query->get();
+    $replies = $reply_query->orderByDesc('heart')->orderByDesc('like_count')->latest()->get();
     foreach ($replies as $reply) {
-      $reply->review = $reply->reviewed();
       $reply->creator = ($reply->replier_id === $comment->commentable->channel_id);
-      $reply->author = ($reply->replier_id === auth()->id());
+      $reply->author = $isLoggedIn || ($reply->replier_id === auth()->id());
     }
     return $replies;
   }

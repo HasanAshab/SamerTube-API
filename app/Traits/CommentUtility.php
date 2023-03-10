@@ -11,7 +11,7 @@ trait CommentUtility {
   }
 
   public function comments() {
-    return $this->morphMany(Comment::class, 'commentable')->join('channels', 'channels.id', '=', 'comments.commenter_id')->select('comments.*', 'channels.name', 'channels.logo_url');
+    return $this->morphMany(Comment::class, 'commentable');
   }
 
   public function comment($text) {

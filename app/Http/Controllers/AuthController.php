@@ -44,7 +44,7 @@ class AuthController extends Controller
       return response()->json(['success' => true, 'message' => 'Verification email sent!'], 200)->header('Authorization', 'Bearer '.$token);
     }
     return response()->json(['success' => false,
-      'message' => 'Failed to create account!'], 451);
+      'message' => 'Failed to create account!'], 422);
   }
 
   // Login to Account manually
@@ -100,7 +100,7 @@ class AuthController extends Controller
         return response()->json(['success' => true], 200)->header('Authorization', 'Bearer '.$token);
       }
       return response()->json(['success' => false,
-        'message' => 'Failed to create account!'], 451);
+        'message' => 'Failed to create account!'], 422);
     }
   }
 
@@ -136,7 +136,7 @@ class AuthController extends Controller
     ?['success' => true,
       'message' => 'Password changed successfully!']
     :response()->json(['success' => true,
-      'message' => 'Failed to reset password!'], 451);
+      'message' => 'Failed to reset password!'], 422);
   }
 
   // Change account Password
@@ -151,7 +151,7 @@ class AuthController extends Controller
         return response()->json(['success' => false, 'message' => 'New password shouldn\'t match to old one!'], 406);
       }
       if (!Hash::check($request->old_password, $user->password)) {
-        return response()->json(['success' => false, 'message' => 'Old password don\'t match!'], 401);
+        return response()->json(['success' => false, 'message' => 'Old password don\'t match!'], 400);
       }
     }
     $user->password = Hash::make($request->new_password);
@@ -187,7 +187,7 @@ class AuthController extends Controller
     if (auth()->user()->currentAccessToken()->delete()) {
       return ['success' => true];
     }
-    return response()->json(['success' => false], 451);
+    return response()->json(['success' => false], 422);
   }
 
   // Logout from all devices
@@ -195,7 +195,7 @@ class AuthController extends Controller
     if ($request->user()->tokens()->delete()) {
       return ['success' => true];
     }
-    return response()->json(['success' => false], 451);
+    return response()->json(['success' => false], 422);
   }
 
   // Delete a user
@@ -207,7 +207,7 @@ class AuthController extends Controller
         'message' => 'Your account is successfully deleted!'];
     }
     return response()->json(['success' => false,
-      'message' => 'failed to delete account!'], 451);
+      'message' => 'failed to delete account!'], 422);
   }
 
   protected function createChannel($name, $logo_url, $country) {

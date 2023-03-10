@@ -21,6 +21,11 @@ class Reply extends Model
     'comment_id',
     'replier_id'
   ];
+  
+  public function replier(){
+    return $this->belongsTo(Channel::class);
+  }
+  
   public function video() {
     return $this->belongsToThrough(Video::class, Comment::class);
   }

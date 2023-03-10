@@ -17,7 +17,7 @@ class ReplyPolicy
   }
   
   public function read(User $user, Comment $comment){
-    return $comment->commentable->allow_comments && ($user->is_admin || $comment->commentable->visibility === "public" || $comment->commentable->channel_id === $user->id);
+    return $user->is_admin || $comment->commentable->visibility === "public" || $comment->commentable->channel_id === $user->id;
   }
   
   public function update(User $user, Reply $reply){
