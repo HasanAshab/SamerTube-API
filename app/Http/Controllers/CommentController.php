@@ -9,7 +9,7 @@ use App\Models\Comment;
 
 class CommentController extends Controller
 {
-  
+
   // Get all comments of a specific content
   public function index(Request $request, $type, $id) {
     $request->validate([
@@ -21,34 +21,35 @@ class CommentController extends Controller
     if (($isLoggedIn && !$request->user()->can('readComments', [$Model, $model])) || $model->visibility !== 'public') {
       abort(405);
     }
-    $comment_query = $model->comments()->with([
-      'commenter' => function ($query){
+
+    $relations = [
+      'commenter' => function ($query) {
         $query->select('id', 'name', 'logo_url');
-      },
-      'reviewed' => function ($query) use ($isLoggedIn){
-        if($isLoggedIn){
-          $query->select('id', 'review');
-        }
-      }
-    ]);
-    if($request->sort === 'top'){
+      }];
+    if ($isLoggedIn) {
+      $relations['reviewed'] = function ($query) {
+        $query->select('id', 'review', 'reviewable_id', 'reviewer_id');
+      };
+    }
+    $comment_query = $model->comments()->with($relations);
+    if ($request->sort === 'top') {
       $comment_query->orderByDesc('like_count')->orderByDesc('heart')->orderByDesc('reply_count');
     }
     if (isset($request->limit)) {
       $offset = isset($request->offset)
-        ?$request->offset
-        :0;
+      ?$request->offset
+      :0;
       $comment_query->offset($offset)->limit($request->limit);
     }
     $comments = $comment_query->latest()->get();
-    
+
     foreach ($comments as $comment) {
       $comment->creator = ($comment->commenter_id === $model->channel_id);
       $comment->author = $isLoggedIn || ($comment->commenter_id === auth()->id());
     }
     return $comments;
   }
-  
+
   // Create comment on a content
   public function store(Request $request, $type, $id) {
     $request->validate([
@@ -65,7 +66,7 @@ class CommentController extends Controller
     }
     return response()->json(['success' => false], 422);
   }
-  
+
   // Update comment
   public function update(Request $request, $type, $id) {
     $request->validate([
@@ -76,7 +77,7 @@ class CommentController extends Controller
     if (!$request->user()->can('updateComment', [$Model, $comment])) {
       abort(405);
     }
-    
+
     $result = $comment->update([
       'text' => $request->text
     ]);

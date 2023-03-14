@@ -14,7 +14,7 @@ class ReviewController extends Controller
   // Like and dislike on a content
   public function __invoke(Request $request, $type, $id) {
     $request->validate([
-      'review' => 'bail|required|in:0,1'
+      'review' => 'required|in:0,1'
     ]);
     $Model = $this->getClassByType($type);
     $model = $Model::find($id);
@@ -30,7 +30,7 @@ class ReviewController extends Controller
     }
 
     if ($result) {
-      return response()->noContent();
+      return ['success' => true];
     }
     return response()->json(['success' => false], 451);
   }

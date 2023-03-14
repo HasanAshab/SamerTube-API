@@ -8,7 +8,7 @@ use App\Models\Reply;
 
 class ReplyController extends Controller
 {
-  
+
   // Get all replies of a specific comment
   public function index(Request $request, $id) {
     $comment = Comment::find($id);
@@ -16,23 +16,14 @@ class ReplyController extends Controller
     if (($isLoggedIn && !$request->user()->can('read', [Reply::class, $comment])) || $comment->commentable->visibility !== 'public') {
       abort(405);
     }
-    
-    if($isLoggedIn){
-      $relations = [
-        'replier' => function ($query){
-          $query->select('id', 'name', 'logo_url');
-        },
-        'reviewed' => function ($query) use ($isLoggedIn){
-          $query->select('id', 'review');
-        }
-      ];
-    }
-    else{
-      $relations = [
-        'replier' => function ($query){
-          $query->select('id', 'name', 'logo_url');
-        }
-      ];
+    $relations = [
+      'replier' => function ($query) {
+        $query->select('id', 'name', 'logo_url');
+      }];
+    if ($isLoggedIn) {
+      $relations['reviewed'] = function ($query) {
+        $query->select('id', 'review', 'reviewable_id', 'reviewer_id');
+      };
     }
     $reply_query = $comment->replies()->with($relations);
     if (isset($request->limit)) {
@@ -104,7 +95,7 @@ class ReplyController extends Controller
     }
     abort(405);
   }
-  
+
   // Give heart on a reply
   public function giveHeart($id) {
     $reply = Reply::find($id);

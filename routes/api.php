@@ -187,8 +187,7 @@ use Illuminate\Support\Facades\Mail;
 
 Route::get('test', function (){
   //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail([]));
- return App\Models\Post::factory()->createQuietly();
- // $post->comment()
-
+  return App\Models\Review::where('reviewer_id', auth()->id())->where('reviewable_type', App\Models\Comment::class)->first();
+;
   
 });
