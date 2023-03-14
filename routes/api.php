@@ -125,8 +125,9 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   });
   
   Route::post('view/{id}/{time}', [VideoController::class, 'setViewWatchTime']);
-  Route::apiResource('video', VideoController::class)->only(['store', 'update', 'destroy']);
+  Route::apiResource('video', VideoController::class)->except('index');
 
+  
   Route::post('history/watch/{save_history}', [HistoryController::class, 'changeWatchHistorySettings'])->where('save_history', '[0-1]');
   Route::post('history/search/{save_history}', [HistoryController::class, 'changeSearchHistorySettings'])->where('save_history', '[0-1]');
   Route::delete('history/watch/all', [HistoryController::class, 'deleteAllWatchHistory']);
@@ -180,6 +181,9 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('videos/previous/rankedby/views', 'getPreviousRankedVideos');
   });
 });
+
+
+//Route::apiResource('video', VideoController::class)->except('index');
 
 
 use App\Mail\VideoUploadedMail;

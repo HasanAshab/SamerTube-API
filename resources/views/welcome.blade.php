@@ -8,7 +8,7 @@
 </head>
 <body>
 
-  <form action="api/video/upload" method="post" enctype="multipart/form-data">
+  <form action="api/video" method="post" enctype="multipart/form-data">
     @csrf
     <input type="number" placeholder="uploader_id" name="uploader_id">
     <input type="text" placeholder="title" name="title">

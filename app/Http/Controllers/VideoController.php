@@ -97,7 +97,7 @@ class VideoController extends Controller
       'tags' => ['bail', new CSVRule()],
       'thumbnail' => 'image'
     ]);
-    $video = Video::find($id);
+    $video = Video::findOrFail($id);
     if (!$request->user()->can('update', [Video::class, $video])) {
       abort(405);
     }
@@ -150,7 +150,7 @@ class VideoController extends Controller
       $view = new View;
       $view->video_id = $id;
       $view->view_duration = $time;
-      $result = $view->save() && Video::find($id)->increment('view_count', 1);
+      $result = $view->save() && Video::findOrFail($id)->increment('view_count', 1);
     }
     return $result
     ?response()->noContent()
@@ -158,14 +158,12 @@ class VideoController extends Controller
   }
   // Delete own video
   public function destroy($id) {
-    $video = Video::find($id);
-    if (!$request->user()->can('delete', [Video::class, $video])) {
+    $video = Video::findOrFail($id);
+    if (!auth()->user()->can('delete', [Video::class, $video])) {
       abort(405);
     }
-    $r3 = $video->delete();
-    $r1 = $this->clear($video->video_path);
-    $r2 = $this->clear($video->thumbnail_path);
-    if ($r1 && $r2 && $r3) {
+    $result = $video->delete();
+    if ($result) {
       $video->channel->decrement('total_videos', 1);
       return ['success' => true,
         'message' => 'Video successfully deleted!'];

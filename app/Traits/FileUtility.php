@@ -7,7 +7,7 @@ trait FileUtility {
 
   public static function bootFileUtility() {
     static::deleting(function ($model) {
-      $model->files()->delete();
+      $model->removeFiles();
     });
   }
   
