@@ -6,43 +6,13 @@ use App\Rules\CSVRule;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\View;
-use App\Models\Channel;
-use App\Models\Subscriber;
-use App\Models\Notification;
-use App\Models\Hidden;
-use App\Models\WatchLater;
-use App\Models\Report;
 use App\Events\Watched;
 use App\Jobs\PublishVideo;
-use App\Mail\VideoUploadedMail;
-use App\Mail\CommentedMail;
-use App\Mail\RepliedMail;
-use App\Mail\LikedMail;
-use App\Mail\GotHeartMail;
 use Carbon\Carbon;
-use Mail;
 use DB;
 
 class VideoController extends Controller
 {
-  // Get all public videos
-  public function explore(Request $request) {
-    $video_query = Video::with(['channel' => function ($query){
-      return $query->select('id', 'name', 'logo_url');
-    }]);
-    if (auth()->check() && auth()->user()->is_admin) {
-      $video_query->where('visibility', 'public');
-    }
-    if (isset($request->limit)) {
-      $offset = isset($request->offset)
-      ?$request->offset
-      :0;
-      $video_query->offset($offset)->limit($request->limit);
-    }
-    $videos = $video_query->rank()->get();
-    return $videos;
-  }
-
   // Save a new video
   public function store(Request $request) {
     $request->validate([

@@ -155,11 +155,11 @@ class PostController extends Controller
     }
     $posts = $post_query->latest()->get();
     $posts->each(function ($post) {
-      $post->polls->each(function ($poll) use ($post){
-        $poll->vote_rate = ($post->total_votes > 0)
-          ?($poll->vote_count*100)/$post->total_votes
-          :0;
-      });
+      if($post->total_votes > 0){
+        $post->polls->each(function ($poll) use ($post){
+          $poll->vote_rate = ($poll->vote_count*100)/$post->total_votes;
+        });
+      }
     });
     return $posts;
   }

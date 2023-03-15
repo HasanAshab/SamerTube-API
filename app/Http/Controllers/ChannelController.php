@@ -125,8 +125,8 @@ class ChannelController extends Controller
   }
 
   // Get all Subscribed channel id and name
-  public function subscriptions(Request $request) {
-    $id = $request->user()->id;
+  public function subscriptions() {
+    $id = auth()->id();
     $subscriptions = Subscriber::where('subscriber_id', $id)->join('channels', 'channels.id', '=', 'subscribers.channel_id')->orderByDesc('total_subscribers')->get(['channel_id', 'name', 'logo_url']);
     return $subscriptions;
   }

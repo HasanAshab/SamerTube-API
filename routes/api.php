@@ -7,6 +7,7 @@ use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\FileController;
@@ -27,6 +28,7 @@ Route::group([
   Route::get('/{id}/{hash}', 'verify')->middleware(['signed'])->name('verify');
   Route::post('/verify/resend', 'resend')->middleware(['auth:sanctum'])->name('send');
 });
+
 // Endpoints for Authenticating user and admin
 Route::group([
   'prefix' => 'auth',
@@ -92,7 +94,7 @@ Route::middleware('wrapApiData')->group(function () {
   Route::get('channel/{id}', [ChannelController::class, 'show'])->name('channel.show');
   Route::get('videos/channel/{id?}', [VideoController::class, 'getChannelVideos']);
   Route::get('posts/channel/{id?}', [PostController::class, 'getChannelPosts']);
-  Route::get('explore', [VideoController::class, 'explore']);
+  Route::get('explore', ExploreController::class);
   Route::get('video/watch/{id}', [VideoController::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::get('search/{term?}', [SearchController::class, 'search']);
   Route::get('suggestions/{query?}', [SearchController::class, 'suggestions']);
@@ -125,7 +127,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   });
   
   Route::post('view/{id}/{time}', [VideoController::class, 'setViewWatchTime']);
-  Route::apiResource('video', VideoController::class)->except('index');
+  //Route::apiResource('video', VideoController::class)->except('index');
 
   
   Route::post('history/watch/{save_history}', [HistoryController::class, 'changeWatchHistorySettings'])->where('save_history', '[0-1]');
@@ -183,7 +185,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
 });
 
 
-//Route::apiResource('video', VideoController::class)->except('index');
+Route::apiResource('video', VideoController::class)->except('index');
 
 
 use App\Mail\VideoUploadedMail;
