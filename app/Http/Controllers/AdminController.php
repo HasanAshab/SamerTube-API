@@ -14,6 +14,8 @@ use App\Notifications\CustomNotification;
 use Illuminate\Support\Facades\Notification as Mail;
 use Hash;
 use DB;
+use Illuminate\Support\Facades\Config;
+
 
 class AdminController extends Controller
 {
@@ -42,9 +44,51 @@ class AdminController extends Controller
     ]);
     $users = User::where('is_admin', 0)->get();
     $result = Mail::send($users, new CustomNotification($request->all()));
-    return ['success' => true, 'message' => 'Notification sent to all users!'];
+    
+    return $result
+      ?['success' => true, 'message' => 'Notification sent to all users!']
+      :response()->json(['success' => false, 'message' => 'Failed to sent notification!'], 422);
   }
+  
+  // Change app name dynamically 
+  public function changeAppName(Request $request){
+    return Config::get('app.name');
+    $request->validate([
+      'name' => 'required|max:25|min:2'
+    ]);
+    $result = updateConfig(['app.name' => $request->name]);
+    return $result
+      ?['success' => true, 'message' => 'App name changed successfully!']
+      :response()->json(['success' => false, 'message' => 'Failed to change app name!'], 422);
+  }
+  
+  // Change mail settings dynamically
+  public function changeMailSettings(Request $request) {
+  $request->validate([
+    'mailer' => 'required',
+    'host' => 'required',
+    'port' => 'required|integer',
+    'username' => 'required',
+    'password' => 'required',
+    'from_name' => 'required',
+    'encryption' => 'required',
+  ]);
+  $result = updateConfig([
+    'MAIL_MAILER' => $request->mailer,
+    'MAIL_HOST' => $request->host,
+    'MAIL_PORT' => $request->port,
+    'MAIL_USERNAME' => $request->username,
+    'MAIL_PASSWORD' => $request->password,
+    'MAIL_FROM_NAME' => $request->from_name,
+    'MAIL_ENCRYPTION' => $request->encryption,
+  ]);
+  return $result;
+  return $result
+    ? ['success' => true, 'message' => 'Mail settings changed successfully!']
+    : response()->json(['success' => false, 'message' => 'Failed to change mail settings!'], 422);
+}
 
+  
   // Delete a user
   public function removeUser($id) {
     $user = User::findOrFail($id);

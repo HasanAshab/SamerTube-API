@@ -17,6 +17,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ReplyController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ConfigController;
 
 // Endpoints to Verify email
 Route::group([
@@ -56,13 +57,22 @@ Route::group([
 Route::group([
   'prefix' => 'c-panel',
   'middleware' => ['auth:sanctum', 'admin'],
-  'controller' => AdminController::class
 ], function ($router) {
-  Route::post('make-admin/{id}', 'makeAdmin');
-  Route::post('notify', 'sentNotification');
-  Route::delete('user/{id}', 'removeUser');
-  Route::delete('notification/{id}', 'removeNotification');
-  Route::apiResource('category', CategoryController::class)->only(['store', 'destroy']);
+  Route::controller(AdminController::class)->group(function () {
+    Route::post('make-admin/{id}', 'makeAdmin');
+    Route::post('notify', 'sentNotification');
+    Route::delete('user/{id}', 'removeUser');
+    Route::delete('notification/{id}', 'removeNotification');
+  });
+  Route::group([
+    'prefix' => 'config',
+    'controller' => ConfigController::class
+  ], function(){
+    Route::put('app-name', 'appConfigure');
+    Route::put('mail', 'mailConfigure');
+    Route::put('google', 'googleConfigure');
+    Route::get('{name}', 'getConfigData');
+  });
   Route::group([
     'prefix' => 'dashboard',
     'middleware' => 'wrapApiData'
@@ -80,12 +90,13 @@ Route::group([
       Route::get('reports/{type}/top', 'getTopReportedContent');
     });
   });
+  Route::apiResource('category', CategoryController::class)->only(['store', 'destroy']);
 });
 
 
 //Endpoints for necessary app services
 Route::get('file/{id}', FileController::class)->middleware(['signed', 'throttle:10,1'])->name('file.serve');
-Route::get('app/name', fn() => config('app.name'));
+Route::get('app-name', fn() => config('app.name'));
 Route::get('categories', [CategoryController::class, 'index']);
 
 
@@ -100,7 +111,6 @@ Route::middleware('wrapApiData')->group(function () {
   Route::get('suggestions/{query?}', [SearchController::class, 'suggestions']);
   Route::get('comment/{type}/{id}', [CommentController::class, 'index']);
   Route::get('reply/{id}', [ReplyController::class, 'index']);
-  
 });
 
 
@@ -127,7 +137,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   });
   
   Route::post('view/{id}/{time}', [VideoController::class, 'setViewWatchTime']);
-  //Route::apiResource('video', VideoController::class)->except('index');
+  Route::apiResource('video', VideoController::class)->except('index');
 
   
   Route::post('history/watch/{save_history}', [HistoryController::class, 'changeWatchHistorySettings'])->where('save_history', '[0-1]');
@@ -182,18 +192,4 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('video/{video_id}/audience', 'getVideoAudience');
     Route::get('videos/previous/rankedby/views', 'getPreviousRankedVideos');
   });
-});
-
-
-Route::apiResource('video', VideoController::class)->except('index');
-
-
-use App\Mail\VideoUploadedMail;
-use Illuminate\Support\Facades\Mail;
-
-Route::get('test', function (){
-  //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail([]));
-  return App\Models\Review::where('reviewer_id', auth()->id())->where('reviewable_type', App\Models\Comment::class)->first();
-;
-  
 });
