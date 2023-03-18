@@ -33,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     $google_configuration = cache()->get('config:google', function (){
       return Configuration::for('google');
     });
+    return $mail_configuration;
     config([
       'app.name' => $app_configuration->name,
       'mail' => $mail_configuration,

@@ -12,10 +12,13 @@ class ConfigController extends Controller
     $request->validate([
       'name' => 'required|max:25|min:2',
     ]);
+    $data = $request->only('name');
     $configuration = Configuration::updateOrCreate(
       ['for' => 'app'],
-      ['data' => $request->only('name')]
+      ['data' => $data]
     );
+    cache()->put('config:app', $data);
+
     return $configuration
     ?['success' => true,
       'message' => 'App name changed successfully!']
@@ -47,11 +50,12 @@ class ConfigController extends Controller
         'address' => $request->from_address
       ],
     ];
-
+    
     $configuration = Configuration::updateOrCreate(
       ['for' => 'mail'],
       ['data' => $data]
     );
+    cache()->put('config:mail', $data);
     return $configuration
     ?['success' => true,
       'message' => 'Mail configuration changed successfully!']
@@ -66,10 +70,13 @@ class ConfigController extends Controller
       'client_secret' => 'required',
       'redirect' => 'required'
     ]);
+    $data = $request->only(['client_id', 'secret', 'redirect']);
     $configuration = Configuration::updateOrCreate(
       ['for' => 'google'],
-      ['data' => $request->only(['client_id', 'secret', 'redirect'])]
+      ['data' => $data]
     );
+    cache()->put('config:google', $data);
+
     return $configuration
     ?['success' => true,
       'message' => 'Google configuration changed successfully!']
@@ -79,7 +86,7 @@ class ConfigController extends Controller
   // Get specific Configuration data
   public function getConfigData($name) {
     return cache()->get("config:$name", function () {
-      return Configuration::for ($name);
+      return Configuration::for($name);
     });
   }
 }

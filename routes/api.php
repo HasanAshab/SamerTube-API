@@ -173,7 +173,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   });
   
   Route::post('report/{type}/{id}', [ReportController::class, 'report']);
-  
   Route::post('vote/{id}', [PostController::class, 'votePoll']);
   Route::apiResource('post', PostController::class)->only(['store', 'update', 'destroy']);
   
@@ -192,4 +191,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('video/{video_id}/audience', 'getVideoAudience');
     Route::get('videos/previous/rankedby/views', 'getPreviousRankedVideos');
   });
+});
+
+use App\Mail\VideoUploadedMail;
+use Illuminate\Support\Facades\Mail;
+
+Route::get('test', function (){
+  Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
 });

@@ -4,31 +4,24 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=Edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HTML</title>
+  <title>New video</title>
 </head>
 <body style="margin: 0; padding: 0;">
-  <table border="0" cellpadding="0" cellspacing="0" width="100%">
-    <tr>
-      <td bgcolor="darkmagenta" style="padding: 20px 0 20px 0;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-          <tr>
-            <td style="color: #ffffff; font-family: Arial, sans-serif; font-size: 50px; font-weight: bold; text-align: center;">
-              SamerTube
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style="background-color: #ffffff;">
-        <table align="center" border="0" cellpadding="0" cellspacing="0" width="600">
-          <tr>
-            <td align="center" valign="top" style="padding: 40px 20px 20px 20px;">
-              <img src="https://via.placeholder.com/150" alt="Profile Picture" width="150" style="display: block; border-radius: 50%;">
-              <h2 style="font-size: 24px; font-weight: bold; margin: 20px 0 0 0;">@ChannelName</h2>
-              <img src="https://via.placeholder.com/400x250" alt="Thumbnail" width="400" style="display: block; margin: 20px auto 0 auto;">
-              <h3 style="font-size: 20px; font-weight: bold; margin: 30px 0 0 0; width: 100%; overflow-wrap: break-word;">This is the title of this video {098765]ujddhdheiejeheheheieiejdhdheueiejdhdhdueiejdhfhdudueuejejhrj}</h3>
-              <p style="font-size: 16px; font-weight: normal; margin: 20px 0 0 0; width: 100%; overflow-wrap: break-word;">This is the description of this video {098765]ujddhdheiejeheheheieiejdhdheueiejdhdhdueiejdhfhdudueuejejhrj} {098765]ujddhdheiejeheheheieiejdhdheueiejdhdhdueiejdhfhdudueuejejhrj} {098765]ujddhdheiejeheheheieiejdhdheueiejdhdhdueiejdhfhdudueuejejhrj} {098765]ujddhdheiejeheheheieiejdhdheueiejdhdhdueiejdhfhdudueuejejhrj}</p>
-              <a href="#" style="background-color: magenta; border-radius: 20px; color: #ffffff; display: inline-block; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; line-height: 50px; padding: 0 20px; text-align: center; text-decoration: none; margin: 40px 0 0 0;">Watch
+
+<nav style="width: 100vw;height:50px;display:flex;justify-content:center;align-items: center;background-color: rgba(0,0,0,0.7)">
+<div style="display:flex;flex-direction: row;justify-content: center; align-items: center;gap: 5px">
+   <img style="width: 30px;border-radius: 100%" src="">
+ <h3 style="font-weight: 600;color: white;">SamerTube</h3>
+
+</div>
+</nav>
+<div style="width: 100vw;display:flex;flex-direction: column;justify-content: center; align-items: center;gap: 10px;margin-top: 10px">
+<img style="width:300px;height:200px" src="/desktop-wallpaper-idk-r-alanbecker-alan-becker.jpg" />
+<p style="padding: 10px">{hello /desktop-wallpaper-idk-r-alanbecker-alan-becker.</p>
+<p style="font-style: 10px; font-weight: 300">{182|wgegefeuwi))j)j)h)hwhwhwhwhwuwg{t)y)y}</p>
+</div>
+<footer style="width: 100vw;height:30px;display:flex;justify-content:center;align-items: center;background-color: rgba(0,0,0,0.7);position: absolute;bottom: 0px;color: white">
+  &copy; 2023 SamerTube . All Rights Reserved.
+</footer>
 </body>
 </html>
