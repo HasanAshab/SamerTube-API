@@ -17,7 +17,7 @@ class ReportController extends Controller
     $request->validate([
       'reason' => 'required|string|between:10,100'
     ]);
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     if(method_exists(Gate::getPolicyFor($Model), 'report')){
       $model = $Model::find($id);
       if(!auth()->user()->can('report', [$Model, $model])){
@@ -52,7 +52,7 @@ class ReportController extends Controller
   
   // Get all reports of a specific content
   public function getContentReports(Request $request, $type, $id) {
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $report_query = Report::where('reportable_type', $Model)->where('reportable_id', $id)->latest();
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
@@ -63,23 +63,12 @@ class ReportController extends Controller
   
   // Get top reported content
   public function getTopReportedContent(Request $request, $type){
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $report_query = Report::with('reportable')->select('reportable_id', 'reportable_type', DB::raw('count(*) as report_count'))->where('reportable_type', $Model)->groupBy('reportable_id')->orderByDesc('report_count');
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
       $report_query->offset($offset)->limit($request->limit);
     }   
     return $report_query->get();
-  }
-  
-  protected function getClassByType($type){
-    return match($type){
-      'channel' => Channel::class,
-      'video' => Video::class,
-      'post' => Post::class,
-      'comment' => Comment::class,
-      'reply' => Reply::class,
-      default => null
-    };
   }
 }

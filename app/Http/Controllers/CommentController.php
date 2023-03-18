@@ -15,7 +15,7 @@ class CommentController extends Controller
     $request->validate([
       'sort' => 'required|in:top,newest'
     ]);
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $model = $Model::find($id);
     $isLoggedIn = auth()->check();
     if (($isLoggedIn && !$request->user()->can('readComments', [$Model, $model])) || $model->visibility !== 'public') {
@@ -55,7 +55,7 @@ class CommentController extends Controller
     $request->validate([
       'text' => 'bail|required|string|max:300'
     ]);
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $model = $Model::find($id);
     if (!auth()->user()->can('comment', [$Model, $model])) {
       abort(405);
@@ -72,7 +72,7 @@ class CommentController extends Controller
     $request->validate([
       'text' => 'bail|required|string|max:300'
     ]);
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $comment = Comment::find($id);
     if (!$request->user()->can('updateComment', [$Model, $comment])) {
       abort(405);
@@ -89,7 +89,7 @@ class CommentController extends Controller
 
   // Delete a comment
   public function destroy($type, $id) {
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $comment = Comment::find($id);
     if (auth()->user()->can('deleteComment', [$Model, $comment])) {
       if ($comment->delete()) {

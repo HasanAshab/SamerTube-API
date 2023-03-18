@@ -16,7 +16,7 @@ class ReviewController extends Controller
     $request->validate([
       'review' => 'required|in:0,1'
     ]);
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $model = $Model::find($id);
     if (method_exists(Gate::getPolicyFor($Model), 'review') && !auth()->user()->can('review', [$Model, $model])) {
       abort(405);
@@ -37,7 +37,7 @@ class ReviewController extends Controller
 
   // Get what is the review of user on a specific content
   public function getReview($type, $id) {
-    $Model = $this->getClassByType($type);
+    $Model = getClassByType($type);
     $review_code = $Model::reviewedAt($id);
     return ['review' => $review_code];
   }
