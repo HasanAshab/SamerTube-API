@@ -21,7 +21,6 @@ return new class extends Migration
             $table->integer('duration');
             $table->string('video_url');
             $table->string('thumbnail_url');
-            $table->string('link');
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->integer('allow_comments')->default(1);
             $table->string('visibility');

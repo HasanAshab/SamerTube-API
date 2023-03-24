@@ -193,9 +193,14 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   });
 });
 
-use App\Mail\VideoUploadedMail;
-use Illuminate\Support\Facades\Mail;
+//Route::apiResource('video', VideoController::class)->except('index');
 
+use App\Events\Commented;
+use App\Events\VideoUploaded;
 Route::get('test', function (){
-  Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
+  //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
+  //return App\Models\Comment::first()->commentable->uploader;
+  //event(new VideoUploaded(App\Models\Video::find(14)));
+  event(new Commented(App\Models\Comment::first()));
+  //return auth()->user()->notifications;
 });

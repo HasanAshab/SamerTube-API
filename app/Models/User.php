@@ -11,7 +11,9 @@ use Illuminate\Contracts\Auth\CanResetPassword;
 
 class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
 {
-  use HasApiTokens, HasFactory, Notifiable;
+  use HasApiTokens,
+  HasFactory,
+  Notifiable;
 
   /**
   * The attributes that are mass assignable.
@@ -51,5 +53,30 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
 
   public function videos() {
     return $this->hasMany(Video::class, 'channel_id');
+  }
+  public function settings() {
+    return $this->hasOne(UserSetting::class);
+  }
+  public function hiddens() {
+    return $this->hasMany(Hidden::class);
+  }
+
+  protected static function boot() {
+    parent::boot();
+    static::created(function ($user) {
+      $data = [
+        'notifications' => [
+          'subscriptions' => true,
+          'channel' => true,
+          'replies' => true,
+          'shared_content' => true
+        ],
+        'general' => [
+          'appearance' => 'light',
+        ],
+        'autoplay' => true
+      ];
+      $user->settings()->create(['data' => $data]);
+    });
   }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\ReviewUtility;
 use App\Traits\ReportUtility;
 use Carbon\Carbon;
+use App\Events\Commented;
 
 class Comment extends Model
 {
@@ -25,7 +26,7 @@ class Comment extends Model
   }
   
   public function commenter(){
-    return $this->belongsTo(Channel::class);
+    return $this->belongsTo(User::class);
   }
   
   public function replies() {
@@ -53,6 +54,11 @@ class Comment extends Model
     parent::boot();
     static::creating(function (Comment $comment) {
       $comment->commenter_id = auth()->id();
+    });
+    static::created(function (Comment $comment) {
+      if($comment->commenter_id !== $comment->commentable->channel_id){
+        event(new Commented($comment));
+      }
     });
   }
 }

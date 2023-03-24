@@ -1,15 +1,16 @@
 <?php
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
 use App\Rules\CSVRule;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\View;
 use App\Events\Watched;
+use App\Events\VideoUploaded;
 use App\Jobs\PublishVideo;
 use Carbon\Carbon;
 use DB;
+use FFMpeg\FFProbe;
 
 class VideoController extends Controller
 {
@@ -29,10 +30,8 @@ class VideoController extends Controller
     $video->description = $request->description;
     $video->category_id = $request->category_id;
     $video->visibility = $request->visibility;
-    $video->link = URL::signedRoute('video.watch', ['id' => $video->getNextId()]);
-    require_once(storage_path('getID3/getid3/getid3.php'));
-    $getID3 = new \getID3;
-    $video->duration = $getID3->analyze($request->file('video'))['playtime_seconds'];
+    $ffprobe = FFProbe::create();
+    $video->duration = $ffprobe->format($request->file('video'))->get('duration');
     $urls = $video->attachFiles([
       'video' => $request->file('video'),
       'thumbnail' => $request->file('thumbnail')
@@ -41,10 +40,7 @@ class VideoController extends Controller
     $video->thumbnail_url = $urls->thumbnail;
     $result = $video->save();
     if ($result) {
-      if ($video->visibility === 'public') {
-        // notify
-      }
-      else if ($video->visibility === 'scheduled') {
+      if ($video->visibility === 'scheduled') {
         PublishVideo::dispatch($video, true)->delay($request->publish_at);
       }
       return ['success' => $result,

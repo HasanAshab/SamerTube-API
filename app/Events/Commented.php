@@ -10,14 +10,13 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class Watched
+class Commented
 {
   use Dispatchable, InteractsWithSockets, SerializesModels;
 
-  public $user, $video_id;
+  public $comment;
 
-  public function __construct($user, $video_id) {
-    $this->user = $user;
-    $this->video_id = $video_id;
+  public function __construct($comment) {
+    $this->comment = $comment;
   }
 }

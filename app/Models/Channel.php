@@ -33,7 +33,10 @@ class Channel extends Model
     'updated_at'
   ];
   
+  protected $appends = ['link'];
+
   protected $searchable = ['name'];
+ 
   public static $rankable = [
     'relevance' => [
       ['total_watch_time', 'desc'],
@@ -54,15 +57,38 @@ class Channel extends Model
   public function user() {
     return $this->hasOne(User::class, 'id', 'id');
   }
+  
   public function videos() {
     return $this->hasMany(Video::class);
   }
+  
   public function replies() {
     return $this->hasManyThrough(Reply::class, Comment::class, 'commenter_id');
   }
+  
+  public function subscribed() {
+    return $this->hasOne(Subscriber::class)->where('subscriber_id', auth()->id());
+  }
+  
+  public function subscribers() {
+    return $this->hasMany(Subscriber::class);
+  }
+  
   public function views() {
     return $this->hasManyThrough(View::class, Video::class);
   }
+  
+  
+  protected function link(): Attribute {
+    return new Attribute(
+      get: function () {
+        $backend_url = route('channel.show', ['id' => $this->id]);
+        $link = config('frontend.url').'/channel/'.$this->id;
+        return $link;
+      }
+    );
+  }
+  
   protected function createdAt(): Attribute {
     return new Attribute(
       get: fn($value) => Carbon::createFromTimeStamp(strtotime($value))->format('jS M, Y'),

@@ -3,12 +3,16 @@
 namespace App\Providers;
 
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
-use App\Listeners\SendNewUserJoinedNotificationToAdmins;
 use App\Events\Searched;
-use App\Listeners\PushSearchHistory;
 use App\Events\Watched;
+use App\Events\VideoUploaded;
+use App\Events\Commented;
+use App\Listeners\SendNewUserJoinedNotificationToAdmins;
+use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use App\Listeners\PushSearchHistory;
 use App\Listeners\PushWatchHistory;
+use App\Listeners\NotifyVideoToSubscribers;
+use App\Listeners\NotifyCommentToCreator;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
@@ -30,6 +34,12 @@ class EventServiceProvider extends ServiceProvider
     ],
     Watched::class => [
       PushWatchHistory::class,
+    ],
+    VideoUploaded::class => [
+      NotifyVideoToSubscribers::class,
+    ],
+    Commented::class => [
+      NotifyCommentToCreator::class,
     ],
   ];
 

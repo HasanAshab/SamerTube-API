@@ -14,16 +14,25 @@ class Subscriber extends Model
   protected $fillable = [
     'subscriber_id',
     'channel_id',
-    'video_id'
+    'video_id',
+    'preference'
   ];
-  function channel() {
+  
+  
+
+  public function channel() {
     return $this->hasOne(Channel::class, 'id', 'channel_id');
   }
-
-  public static function boot() {
+  
+  public function user() {
+    return $this->hasOne(User::class, 'id', 'subscriber_id');
+  }
+  
+  protected static function boot() {
     parent::boot();
     static::creating(function (Subscriber $subscriber) {
       $subscriber->subscriber_id = auth()->id();
+      $subscriber->preference = 'all';
     });
   }
 }
