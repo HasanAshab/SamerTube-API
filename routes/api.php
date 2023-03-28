@@ -122,8 +122,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('notification', [NotificationController::class, 'getNotifications']);
     Route::get('video/liked', [VideoController::class, 'getLikedVideos'])->name('videos.liked');
     Route::get('watch-later', [PlaylistController::class, 'getWatchLaterVideos'])->name('watchLater.videos');
-    Route::get('comment/highlighted/{video_id}/{comment_id}', [CommentController::class, 'getCommentsWithHighlighted'])->middleware('signed')->name('comments.highlighted');
-    Route::get('reply/highlighted/{comment_id}/{reply_id}', [ReplyController::class, 'getRepliesWithHighlighted'])->middleware('signed')->name('replies.highlighted');
     Route::get('playlist', [PlaylistController::class, 'index']);
     Route::get('playlist/{id}', [PlaylistController::class, 'getPlaylistVideos'])->middleware('signed')->name('playlist.videos');
     Route::get('review/{type}/{id}', [ReviewController::class, 'getReview']);
@@ -197,10 +195,16 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
 
 use App\Events\Commented;
 use App\Events\VideoUploaded;
+use App\Events\Replied;
+use App\Events\Subscribed;
+use App\Events\CommentHearted;
+
 Route::get('test', function (){
   //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
   //return App\Models\Comment::first()->commentable->uploader;
   //event(new VideoUploaded(App\Models\Video::find(14)));
-  event(new Commented(App\Models\Comment::first()));
+  //event(new Commented(App\Models\Comment::first()));
+  event(new CommentHearted(App\Models\Reply::first()));
+  //event(new Subscribed(App\Models\Subscriber::find(2)));
   //return auth()->user()->notifications;
 });

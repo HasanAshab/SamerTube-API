@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Video;
 use App\Models\Post;
 use App\Models\Comment;
+use App\Events\CommentHearted;
 
 class CommentController extends Controller
 {
@@ -105,34 +106,6 @@ class CommentController extends Controller
     abort(405);
   }
 
-  // Get all comments of a video with 1 highlighted one. for notification view
-  public function getCommentsWithHighlighted(Request $request, $video_id, $comment_id) {
-    $video = Video::find($video_id);
-    if (!$request->user()->can('readComments', [Video::class, $video])) {
-      abort(405);
-    }
-    $comment_query = $video->comments();
-    if (isset($request->limit)) {
-      $offset = isset($request->offset)
-      ?$request->offset
-      :0;
-      $comment_query->offset($offset)->limit($request->limit);
-    }
-    $comments = $comment_query->get();
-
-    foreach ($comments as $comment) {
-      $comment->review = $comment->reviewed();
-      $comment->highlight = ($comment->id == $comment_id);
-      $comment->author = ($comment->commenter_id === $video->channel_id);
-    }
-    return [
-      'heading' => "Comments on &quot;".$video->title."&quot;",
-      'link' => $video->link,
-      'thumbnail_url' => $video->thumbnail_url,
-      'comments' => $comments
-    ];
-  }
-
   // Give heart on a comment
   public function giveHeart($id) {
     $comment = Comment::find($id);
@@ -143,7 +116,7 @@ class CommentController extends Controller
     $result = $comment->save();
     if ($result) {
       if ($comment->heart) {
-        // notify
+        event(new CommentHearted($comment));
       }
       return response()->noContent();
     }

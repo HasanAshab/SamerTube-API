@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Comment;
 use App\Models\Reply;
+use App\Events\CommentHearted;
 
 class ReplyController extends Controller
 {
@@ -106,7 +107,7 @@ class ReplyController extends Controller
     $result = $reply->save();
     if ($result) {
       if ($reply->heart) {
-        // notify
+        event(new CommentHearted($reply));
       }
       return response()->noContent();
     }

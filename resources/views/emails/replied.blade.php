@@ -1,60 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HTML</title>
-</head>
-<body style="margin: 0; padding: 0;">
+@extends('emails.layout')
+@section('content')
+  @if($type === 'video')
+  <div style="width: 100vw;display:flex;flex-direction: column;justify-content: center; align-items: center;margin-top: 10px">
 
-<nav style="width: 100vw;height:50px;display:flex;justify-content:center;align-items: center;background-color: rgba(0,0,0,0.7)">
-<div style="display:flex;flex-direction: row;justify-content: center; align-items: center;gap: 5px">
-   <img style="width: 30px;border-radius: 100%" src="/logo.jpeg">
- <h3 style="font-weight: 600;color: white;">SamerTube</h3>
+    <h3 style="padding: 5px;font-size: 5vw">{{$replier_name}} replied to your comment</h3>
 
-</div>
-</nav>
-<div style="width: 100vw;display:flex;flex-direction: column;justify-content: center; align-items: center;margin-top: 10px">
-
-<p style="padding: 5px;">@User replied to @Commenter's comment</p>
-
-<a style="text-decoration: none; color: black" href="#"><div style="display:flex;flex-direction: row;justify-content: center; align-items: center;gap: 10px;padding: 0 2vw;">
-<img style="width:70px;height:40px" src="/desktop-wallpaper-idk-r-alanbecker-alan-becker.jpg" />
-<p style="padding: 10px;">{hello /desktop-wallpaper-idk-r-alanbecker-alan-becker.</p>
-</div></a>
+    <a style="text-decoration: none; color: black" href="{{$video_link}}">
+      <div style="display:flex;flex-direction: row;justify-content: center; align-items: center;gap: 10px;padding: 0 2vw;">
+        <img style="width:70px;height:40px" src="{{$video_thumbnail_url}}" />
+      <p style="padding: 10px;">
+        {{$video_title}}
+      </p>
+    </div>
+  </a>
 
 
 
-<div style="width: 90vw;border: .1px solid black;display: flex;flex-direction: row; padding: 2vw 2vw;gap: 5px;">
- 
+  <div style="width: 90vw;border: .1px solid black;display: flex;flex-direction: row; padding: 2vw 2vw;gap: 5px;">
     <div style="display: flex; justify-content: center;align-items: center">
-     <img style="border-radius: 100%;width: 40px" src="/ppic.png">
-   </div>
-   
- 
- <div style="display: flex;flex-direction: column;gap: 10px">
-   
-   <div style="display: flex;flex-direction: column;gap: 5px">
-     <strong>@username</strong>
-     <span>Hello how are you!!</span>
-   </div>
-  
-  
-   <div style="display: flex;justify-content: left;flex-direction: row;gap: 10px">
-     <a style="text-decoration: none;" href="#">Reply</a>
-   </div>
- </div> 
+      <img style="border-radius: 100%;width: 40px" src="{{$replier_logo_url}}">
+    </div>
 
- 
+
+    <div style="display: flex;flex-direction: column;gap: 10px">
+
+      <div style="display: flex;flex-direction: column;gap: 5px">
+        <strong>{{$replier_name}}</strong>
+        <span>{{$text}}</span>
+      </div>
+
+
+      <div style="display: flex;justify-content: left;flex-direction: row;gap: 10px">
+        <a style="text-decoration: none;padding: 1vw 2vw;background-color: rgba(0,0,0,0.7);color: white;font-size: 2vw;border-radius: 3vw;" href="{{$reply_page_link}}">Reply</a>
+      </div>
+    </div>
+  </div>
 </div>
-
-</div>
-
-<footer style="width: 100vw;height:30px;display:flex;justify-content:center;align-items: center;background-color: rgba(0,0,0,0.7);position: absolute;bottom: 0px;color: white">
-  &copy; 2023 SamerTube . All Rights Reserved.
-</footer>
-
-
-</body>
-</html>
+@endif
+@endsection

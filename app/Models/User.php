@@ -38,15 +38,6 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
     'remember_token',
   ];
 
-  /**
-  * The attributes that should be cast.
-  *
-  * @var array<string, string>
-  */
-  protected $casts = [
-    //
-  ];
-
   public function channel() {
     return $this->hasOne(Channel::class, 'id', 'id');
   }

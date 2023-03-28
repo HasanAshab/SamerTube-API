@@ -6,11 +6,11 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\URL;
 
-class CommentedVideoNotification extends Notification
+class SubscribedNotification extends Notification
 {
   use Queueable;
+
   protected $data;
   /**
   * Create a new notification instance.
@@ -28,8 +28,7 @@ class CommentedVideoNotification extends Notification
   * @return array
   */
   public function via($notifiable) {
-    return ['mail',
-      'database'];
+    return ['mail', 'database'];
   }
 
   /**
@@ -40,9 +39,10 @@ class CommentedVideoNotification extends Notification
   */
   public function toMail($notifiable) {
     return (new MailMessage)
-    ->subject('New comment on "'.$this->data['video_title'].'"')
-    ->view('emails.commentedVideo', $this->data);
+    ->subject($this->data['subscriber_name'].' has subscribed to you on '.config('app.name'))
+    ->view('emails.subscribed', $this->data);
   }
+
   /**
   * Get the array representation of the notification.
   *
@@ -50,17 +50,11 @@ class CommentedVideoNotification extends Notification
   * @return array
   */
   public function toArray($notifiable) {
-    if (strlen($this->data['text']) > 15){
-      $text = $this->data['commenter_name'].' commented: "'.substr($this->data['text'], 0, 15).'..."';
-    }
-    else {
-      $text = $this->data['commenter_name'].' commented: "'.$this->data['text'].'"';
-    }
+    $text = 'New subscriber: '.$this->data['subscriber_name'];
     return [
-      'commenter_logo_url' => $this->data['commenter_logo_url'],
-      'video_thumbnail_url' => $this->data['video_thumbnail_url'],
       'text' => $text,
-      'link' => $this->data['reply_page_link'],
+      'logo_url' => $this->data['subscriber_logo_url'],
+      'link' => $this->data['subscriber_channel_page_link'],
     ];
   }
 }

@@ -32,6 +32,10 @@ class Comment extends Model
   public function replies() {
     return $this->hasMany(Reply::class);
   }
+  
+  public function isCreator() {
+    return $this->commenter_id === $this->commentable->channel_id;
+  }
 
   protected function createdAt(): Attribute {
     return new Attribute(
@@ -56,9 +60,7 @@ class Comment extends Model
       $comment->commenter_id = auth()->id();
     });
     static::created(function (Comment $comment) {
-      if($comment->commenter_id !== $comment->commentable->channel_id){
-        event(new Commented($comment));
-      }
+      event(new Commented($comment));
     });
   }
 }

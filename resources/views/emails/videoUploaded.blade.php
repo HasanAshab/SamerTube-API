@@ -1,21 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-
-<body style="margin: 0; padding: 0;">
-
-  <nav style="width: 100vw;height:50px;display:flex;justify-content:center;align-items: center;background-color: rgba(0,0,0,0.7)">
-    <div style="display:flex;flex-direction: row;justify-content: center; align-items: center;gap: 5px">
-      <img style="width: 40px;height: 40px;border-radius: 100%" src="{{config('app.logo')}}">
-      <h3 style="font-weight: 600;color: white;">{{config('app.name')}}</h3>
-
-    </div>
-  </nav>
+@extends('emails.layout')
+@section('content')
   <br>
   <div style="display: flex;justify-content: left;align-items: center;width: 90vw;margin: auto;font-size: 4vw">
     <h3>{{$channel_name}} uploaded a new video!!</h2>
@@ -48,10 +32,4 @@
   </div>
 
   <br>
-
-  <footer style="width: 100vw;height:30px;display:flex;justify-content:center;align-items: center;background-color: rgba(0,0,0,0.7);position: absolute;bottom: 0px;color: white">
-    &copy; 2023 {{config('app.name')}} . All Rights Reserved.
-  </footer>
-</body>
-
-</html>
+@endsection

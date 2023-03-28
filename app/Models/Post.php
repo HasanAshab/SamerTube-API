@@ -30,6 +30,10 @@ class Post extends Model
     'shared_id',
   ];
   
+  public function publisher() {
+    return $this->belongsTo(User::class, 'channel_id', 'id');
+  }
+  
   public function channel(){
     return $this->belongsTo(Channel::class);
   }

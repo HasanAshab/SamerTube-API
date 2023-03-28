@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Events\Subscribed;
 
 class Subscriber extends Model
 {
@@ -20,11 +21,15 @@ class Subscriber extends Model
   
   
 
-  public function channel() {
-    return $this->hasOne(Channel::class, 'id', 'channel_id');
+  public function user() {
+    return $this->hasOne(User::class, 'id', 'channel_id');
   }
   
-  public function user() {
+  public function channel() {
+    return $this->hasOne(Channel::class);
+  }
+  
+  public function subscriber() {
     return $this->hasOne(User::class, 'id', 'subscriber_id');
   }
   
@@ -33,6 +38,9 @@ class Subscriber extends Model
     static::creating(function (Subscriber $subscriber) {
       $subscriber->subscriber_id = auth()->id();
       $subscriber->preference = 'all';
+    });
+    static::created(function (Subscriber $subscriber) {
+      event(new Subscribed($subscriber));
     });
   }
 }

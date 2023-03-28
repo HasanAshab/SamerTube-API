@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\ReviewUtility;
 use App\Traits\ReportUtility;
+use App\Events\Replied;
 use Carbon\Carbon;
 
 class Reply extends Model
@@ -23,7 +24,7 @@ class Reply extends Model
   ];
   
   public function replier(){
-    return $this->belongsTo(Channel::class);
+    return $this->belongsTo(User::class);
   }
   
   public function video() {
@@ -32,6 +33,10 @@ class Reply extends Model
 
   public function comment() {
     return $this->belongsTo(Comment::class);
+  }
+  
+  public function isCreator() {
+    return $this->replier_id === $this->comment->commentable->channel_id;
   }
 
   protected function createdAt(): Attribute {
@@ -56,6 +61,9 @@ class Reply extends Model
     parent::boot();
     static::creating(function (Reply $reply) {
       $reply->replier_id = auth()->id();
+    });
+    static::created(function (Reply $reply) {
+      event(new Replied($replied));
     });
   }
 }

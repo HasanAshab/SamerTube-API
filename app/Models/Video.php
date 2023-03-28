@@ -106,7 +106,7 @@ class Video extends Model
     ],
   ];
 
-  public function uploader() {
+  public function publisher() {
     return $this->belongsTo(User::class, 'channel_id', 'id');
   }
 
