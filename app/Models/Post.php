@@ -11,6 +11,8 @@ use App\Traits\FileUtility;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
+use App\Events\Posted;
+
 
 class Post extends Model
 {
@@ -69,6 +71,11 @@ class Post extends Model
     parent::boot();
     static::creating(function (Post $post) {
      $post->channel_id = auth()->id();
+    });
+    static::created(function (Post $post) {
+      if ($post->visibility === 'public') {
+        event(new Posted($post));
+      }
     });
   }
 }

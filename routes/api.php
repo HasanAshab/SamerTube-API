@@ -18,6 +18,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ReplyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ConfigController;
+use App\Http\Controllers\NotificationController;
 
 // Endpoints to Verify email
 Route::group([
@@ -119,7 +120,8 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   Route::middleware('wrapApiData')->group(function () {
     Route::get('channel', [ChannelController::class, 'index']);
     Route::get('subscriptions', [ChannelController::class, 'subscriptions']);
-    Route::get('notification', [NotificationController::class, 'getNotifications']);
+    Route::get('notifications', [NotificationController::class, 'getNotifications']);
+    Route::get('notifications/unread/count', [NotificationController::class, 'getUnreadNotificationCount']);
     Route::get('video/liked', [VideoController::class, 'getLikedVideos'])->name('videos.liked');
     Route::get('watch-later', [PlaylistController::class, 'getWatchLaterVideos'])->name('watchLater.videos');
     Route::get('playlist', [PlaylistController::class, 'index']);
@@ -144,7 +146,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
   Route::delete('history/search/all', [HistoryController::class, 'deleteAllSearchHistory']);
   Route::apiResource('history', HistoryController::class)->only(['index', 'destroy']);
   
-  Route::post('notification/hide/{notification_id}', [NotificationController::class, 'hideNotification']);
+  Route::post('notifications/hide/{notification_id}', [NotificationController::class, 'hideNotification']);
     
   Route::controller(CommentController::class)->group(function () {
     Route::post('comment/{type}/{id}', 'store');

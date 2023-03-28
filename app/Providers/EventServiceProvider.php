@@ -6,6 +6,7 @@ use Illuminate\Auth\Events\Registered;
 use App\Events\Searched;
 use App\Events\Watched;
 use App\Events\VideoUploaded;
+use App\Events\Posted;
 use App\Events\Commented;
 use App\Events\Replied;
 use App\Events\Subscribed;
@@ -15,6 +16,7 @@ use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use App\Listeners\PushSearchHistory;
 use App\Listeners\PushWatchHistory;
 use App\Listeners\NotifyVideoToSubscribers;
+use App\Listeners\NotifyPostToSubscribers;
 use App\Listeners\NotifyCommentToCreator;
 use App\Listeners\NotifyReplyToCommenter;
 use App\Listeners\NotifySubscribeToCreator;
@@ -44,6 +46,9 @@ class EventServiceProvider extends ServiceProvider
     ],
     VideoUploaded::class => [
       NotifyVideoToSubscribers::class,
+    ],
+    Posted::class => [
+      NotifyPostToSubscribers::class,
     ],
     Commented::class => [
       NotifyCommentToCreator::class,

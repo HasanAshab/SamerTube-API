@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Hidden extends Model
 {
   use HasFactory;
-  protected $timestamps = false;
+  public $timestamps = false;
 
 
   public static function boot() {

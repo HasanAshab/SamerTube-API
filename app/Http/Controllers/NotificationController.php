@@ -10,7 +10,14 @@ class NotificationController extends Controller
   // Get all notifications of a user
   public function getNotifications() {
     $hiddens_id = auth()->user()->hiddens()->pluck('notification_id');
-    $notificaztions = auth()->user()->notifications()->whereNotIn('id', $hiddens_id);
+    $notifications = auth()->user()->notifications()->whereNotIn('id', $hiddens_id)->get();
+    auth()->user()->unreadNotifications->markAsRead();
+    return $notifications;
+  }
+
+  // Get the count of unread notification
+  public function getUnreadNotificationCount(){
+    return auth()->user()->unreadNotifications()->count();
   }
 
   // Hide a Notification
