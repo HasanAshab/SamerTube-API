@@ -63,9 +63,6 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
           'replies' => true,
           'shared_content' => true
         ],
-        'general' => [
-          'appearance' => 'light',
-        ],
         'autoplay' => true
       ];
       $user->settings()->create(['data' => $data]);

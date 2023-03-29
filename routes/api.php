@@ -19,6 +19,7 @@ use App\Http\Controllers\ReplyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ConfigController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SettingController;
 
 // Endpoints to Verify email
 Route::group([
@@ -68,7 +69,7 @@ Route::group([
   Route::group([
     'prefix' => 'config',
     'controller' => ConfigController::class
-  ], function(){
+  ], function() {
     Route::put('app-name', 'appConfigure');
     Route::put('mail', 'mailConfigure');
     Route::put('google', 'googleConfigure');
@@ -129,39 +130,39 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('review/{type}/{id}', [ReviewController::class, 'getReview']);
     Route::get('vote/{id}', [PostController::class, 'getVotedPoll']);
   });
-  
+
   Route::controller(ChannelController::class)->group(function () {
     Route::put('channel', 'update');
     Route::post('subscribe/{channel_id}/{video_id?}', 'subscribe');
     Route::post('unsubscribe/{channel_id}/{video_id?}', 'unsubscribe');
   });
-  
+
   Route::post('view/{id}/{time}', [VideoController::class, 'setViewWatchTime']);
   Route::apiResource('video', VideoController::class)->except('index');
 
-  
+
   Route::post('history/watch/{save_history}', [HistoryController::class, 'changeWatchHistorySettings'])->where('save_history', '[0-1]');
   Route::post('history/search/{save_history}', [HistoryController::class, 'changeSearchHistorySettings'])->where('save_history', '[0-1]');
   Route::delete('history/watch/all', [HistoryController::class, 'deleteAllWatchHistory']);
   Route::delete('history/search/all', [HistoryController::class, 'deleteAllSearchHistory']);
   Route::apiResource('history', HistoryController::class)->only(['index', 'destroy']);
-  
+
   Route::post('notifications/hide/{notification_id}', [NotificationController::class, 'hideNotification']);
-    
+
   Route::controller(CommentController::class)->group(function () {
     Route::post('comment/{type}/{id}', 'store');
     Route::put('comment/{type}/{id}', 'update');
     Route::delete('comment/{type}/{id}', 'destroy');
     Route::post('heart/comment/{id}', 'giveHeart');
   });
-  
+
   Route::controller(ReplyController::class)->group(function () {
     Route::post('reply/{id}', 'store');
     Route::put('reply/{id}', 'update');
     Route::delete('reply/{id}', 'destroy');
     Route::post('heart/reply/{id}', 'giveHeart');
   });
-  
+
   Route::controller(PlaylistController::class)->group(function () {
     Route::post('playlist/{id}', 'savePlaylist');
     Route::delete('playlist/saved/{id}', 'removeSavedPlaylist');
@@ -171,13 +172,13 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::delete('watch-later/{video_id}', 'removeVideoFromWatchLater');
     Route::apiResource('playlist', PlaylistController::class)->only(['store', 'update', 'destroy']);
   });
-  
+
   Route::post('report/{type}/{id}', [ReportController::class, 'report']);
   Route::post('vote/{id}', [PostController::class, 'votePoll']);
   Route::apiResource('post', PostController::class)->only(['store', 'update', 'destroy']);
-  
+
   Route::post('review/{type}/{id}', ReviewController::class);
-  
+
   Route::group([
     'prefix' => 'dashboard',
     'middleware' => 'wrapApiData',
@@ -191,6 +192,15 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
     Route::get('video/{video_id}/audience', 'getVideoAudience');
     Route::get('videos/previous/rankedby/views', 'getPreviousRankedVideos');
   });
+
+  Route::group([
+    'prefix' => 'settings',
+    'controller' => SettingController::class
+  ], function ($router) {
+    Route::get('/', 'getSettings')->middleware('wrapApiData');
+    Route::put('/notification', 'updateNotificationSettings');
+    Route::put('/autoplay', 'updateAutoplaySettings');
+  });
 });
 
 //Route::apiResource('video', VideoController::class)->except('index');
@@ -201,7 +211,7 @@ use App\Events\Replied;
 use App\Events\Subscribed;
 use App\Events\CommentHearted;
 
-Route::get('test', function (){
+Route::get('test', function () {
   //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
   //return App\Models\Comment::first()->commentable->uploader;
   //event(new VideoUploaded(App\Models\Video::find(14)));
