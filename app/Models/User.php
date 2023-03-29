@@ -57,6 +57,7 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
     static::created(function ($user) {
       $data = [
         'notifications' => [
+          'mail' => true,
           'subscriptions' => true,
           'channel' => true,
           'replies' => true,

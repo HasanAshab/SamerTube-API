@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
+use App\Models\User;
 
 class CommentedNotification extends Notification
 {
@@ -28,7 +29,12 @@ class CommentedNotification extends Notification
   * @return array
   */
   public function via($notifiable) {
-    return ['mail', 'database'];
+    $channels = ['database'];
+    $user = $notifiable instanceof User ? $notifiable : $notifiable->user;
+    if ($user->settings->data->notifications->mail) {
+      $channels[] = 'mail';
+    }
+    return $channels;
   }
 
   /**
@@ -49,10 +55,9 @@ class CommentedNotification extends Notification
   * @return array
   */
   public function toArray($notifiable) {
-    if (strlen($this->data['text']) > 15){
+    if (strlen($this->data['text']) > 15) {
       $text = $this->data['commenter_name'].' commented: "'.substr($this->data['text'], 0, 15).'..."';
-    }
-    else {
+    } else {
       $text = $this->data['commenter_name'].' commented: "'.$this->data['text'].'"';
     }
     return [

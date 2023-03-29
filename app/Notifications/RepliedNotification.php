@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use App\Models\User;
 
 class RepliedNotification extends Notification
 {
@@ -28,7 +29,12 @@ class RepliedNotification extends Notification
   * @return array
   */
   public function via($notifiable) {
-    return ['mail', 'database'];
+    $channels = ['database'];
+    $user = $notifiable instanceof User ? $notifiable : $notifiable->user;
+    if ($user->settings->data->notifications->mail) {
+      $channels[] = 'mail';
+    }
+    return $channels;
   }
 
   /**

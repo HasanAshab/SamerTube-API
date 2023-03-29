@@ -205,8 +205,8 @@ Route::get('test', function (){
   //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
   //return App\Models\Comment::first()->commentable->uploader;
   //event(new VideoUploaded(App\Models\Video::find(14)));
-  //event(new Commented(App\Models\Comment::first()));
-  event(new CommentHearted(App\Models\Reply::first()));
+  event(new Commented(App\Models\Comment::first()));
+  //event(new CommentHearted(App\Models\Reply::first()));
   //event(new Subscribed(App\Models\Subscriber::find(2)));
-  //return auth()->user()->notifications;
+  //return auth()->user();
 });
