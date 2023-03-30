@@ -13,6 +13,11 @@ use DB;
 class Playlist extends Model
 {
   use HasFactory, SearchUtility;
+  protected $fillable = [
+    'name',
+    'description',
+    'visibility'
+  ];
   protected $appends = ['thumbnail_url', 'link'];
   protected $searchable = ['name'];
   public static $rankable = [
@@ -26,7 +31,7 @@ class Playlist extends Model
   }
   
   public function videos(){
-    return $this->belongsToMany(Video::class, 'playlist_videos')->oldest('playlist_videos.created_at');
+    return $this->belongsToMany(Video::class, 'playlist_videos');
   }
   
   protected function link(): Attribute {
@@ -43,7 +48,7 @@ class Playlist extends Model
   
   protected function thumbnailUrl(): Attribute {
     return new Attribute(
-      get: fn() => PlaylistVideo::where('playlist_id', $this->id)->join('videos', 'videos.id', '=', 'playlist_videos.video_id')->select('videos.thumbnail_url')->value('thumbnail_url'),
+      get: fn() => $this->videos()->orderBy('serial', 'asc')->value('thumbnail_url'),
     );
   }
   

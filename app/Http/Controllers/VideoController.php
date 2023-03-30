@@ -5,6 +5,7 @@ use App\Rules\CSVRule;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\View;
+use App\Models\Subscriber;
 use App\Events\Watched;
 use App\Events\VideoUploaded;
 use App\Jobs\PublishVideo;
@@ -94,7 +95,9 @@ class VideoController extends Controller
 
   // Get details of a video to watch
   public function watch(Request $request, $id) {
-    $video = Video::where('id', $id)->channel()->select('videos.*', 'channels.name', 'channels.logo_url', 'channels.total_subscribers')->first();
+    $video = Video::with(['channel' => function ($query){
+      $query->select('id', 'name', 'logo_url', 'total_subscribers');
+    }])->where('id', $id)->first();
     if (!$request->user()->can('watch', [Video::class, $video]) || (!auth()->check() && $video->visibility !== 'public')) {
       abort(405);
     }

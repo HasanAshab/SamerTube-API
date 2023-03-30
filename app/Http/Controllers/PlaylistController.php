@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use App\Models\Video;
+use App\Models\Review;
 use App\Models\Playlist;
-use App\Models\PlaylistVideo;
+use App\Models\WatchLater;
 use App\Models\SavedPlaylist;
+use App\Models\PlaylistVideo;
 
 class PlaylistController extends Controller
 {
@@ -23,7 +25,7 @@ class PlaylistController extends Controller
     $watch_later = [
       'name' => 'Watch later',
       'total_videos' => WatchLater::where('user_id', auth()->id())->count(),
-      'link' => route('videos.watchLater'),
+      'link' => route('watchLater.videos'),
       'thumbnail_url' => route('static.image.serve', ['filename' => 'watch-later.jpg'])
     ];
     $playlists = Playlist::where('user_id', auth()->id())->orWhere(function ($query) use ($saved_playlists_id) {
@@ -157,10 +159,12 @@ class PlaylistController extends Controller
         'message' => 'Video already exist in the playlist!'
       ], 422);
     }
-    $playlist_video = new PlaylistVideo;
-    $playlist_video->playlist_id = $playlist_id;
-    $playlist_video->video_id = $video_id;
-    if ($playlist_video->save()) {
+    $playlist_video = PlaylistVideo::create([
+      'playlist_id' => $playlist_id,
+      'video_id' => $video_id,
+      'serial' => $playlist->total_videos+1
+    ]);
+    if ($playlist_video) {
       $playlist->increment('total_videos', 1);
       return ['success' => true,
         'message' => 'Video added to &quot;'.$playlist->name.'&quot;!'];
@@ -196,8 +200,7 @@ class PlaylistController extends Controller
     if ($playlist->visibility !== "public" && !auth()->user()->is_admin && $playlist->user_id !== auth()->id()) {
       abort(405);
     }
-    $videos = collect();
-    $playlist_video_query = $playlist->videos();
+    $playlist_video_query = $playlist->videos()->orderBy('serial', 'asc');
     if (isset($request->limit)) {
       $offset = isset($request->offset)?$request->offset:0;
       $playlist_video_query->offset($offset)->limit($request->limit);
@@ -207,6 +210,22 @@ class PlaylistController extends Controller
     }])->where('visibility', 'public')->get();
     return $videos;
   }
+
+  // Change the video serial in a playlist
+  public function changeVideoSerial(Request $request, $id) {
+    $request->validate([
+      'data' => 'required|array'
+    ]);
+    $playlist = Playlist::find($id);
+    if ($playlist->user_id !== $request->user()->id) {
+      abort(405);
+    }
+    foreach ($request->data as $data){
+      PlaylistVideo::where('playlist_id', $id)->where('video_id', $data['id'])->update(['serial' => $data['serial']]);
+    }
+    return ['success' => true];
+  }
+
 
   // Get watch later videos
   public function getWatchLaterVideos(Request $request) {

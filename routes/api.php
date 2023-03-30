@@ -109,7 +109,7 @@ Route::middleware('wrapApiData')->group(function () {
   Route::get('videos/channel/{id?}', [VideoController::class, 'getChannelVideos']);
   Route::get('posts/channel/{id?}', [PostController::class, 'getChannelPosts']);
   Route::get('explore', ExploreController::class);
-  Route::get('video/watch/{id}', [VideoController::class, 'watch'])->middleware('signed')->name('video.watch');
+  Route::get('video/{id}/watch', [VideoController::class, 'watch'])->middleware('signed')->name('video.watch');
   Route::get('search/{term?}', [SearchController::class, 'search']);
   Route::get('suggestions/{query?}', [SearchController::class, 'suggestions']);
   Route::get('comment/{type}/{id}', [CommentController::class, 'index']);
@@ -166,6 +166,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:50,1'])->group(function
 
   Route::controller(PlaylistController::class)->group(function () {
     Route::post('playlist/{id}', 'savePlaylist');
+    Route::put('playlist/{id}/serial', 'changeVideoSerial');
     Route::delete('playlist/saved/{id}', 'removeSavedPlaylist');
     Route::post('playlist/{playlist_id}/{video_id}', 'addVideoToPlaylist');
     Route::delete('playlist/{playlist_id}/{video_id}', 'removeVideoFromPlaylist');
@@ -213,10 +214,12 @@ use App\Events\Subscribed;
 use App\Events\CommentHearted;
 
 Route::get('test', function () {
+  return \Illuminate\Support\Facades\URL::signedRoute('playlist.videos', ['id' => 1]);
+
   //Mail::to('hostilarysten@gmail.com')->send(new VideoUploadedMail(['subject' => 'nfnf']));
   //return App\Models\Comment::first()->commentable->uploader;
   //event(new VideoUploaded(App\Models\Video::find(14)));
-  event(new Commented(App\Models\Comment::first()));
+  //event(new Commented(App\Models\Comment::first()));
   //event(new CommentHearted(App\Models\Reply::first()));
   //event(new Subscribed(App\Models\Subscriber::find(2)));
   //return auth()->user();

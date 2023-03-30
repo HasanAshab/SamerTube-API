@@ -287,7 +287,6 @@
       }
 
     }
-
     if (keysArr[0].value === '' || method === 'GET') {
 
       myInit = {
@@ -373,10 +372,7 @@
       };
 
       fetch(url, myInit).then(response => response.json()).then((data) => {
-
-        localStorage.setItem('token',
-
-          data.token);
+        localStorage.setItem('token', data.token);
 
       });
 
@@ -415,11 +411,8 @@
 
 
     let newCloseBtn = document.createElement('span');
-
     newCloseBtn.setAttribute('class', 'closeBtn');
-
     newCloseBtn.setAttribute('onclick', 'removeInputBar(this.parentNode)');
-
     newCloseBtn.innerHTML = '&times;';
 
 
@@ -453,24 +446,14 @@
 
 
   function updatePushIndex() {
-
     let oldKeyInp = document.querySelectorAll('.keyInp')
-
     Array.from(oldKeyInp).forEach((e, i) => {
-
       if (e.hasAttribute('oninput')) {
-
         e.removeAttribute('oninput');
-
       }
-
     })
-
     newKeyInp = document.querySelectorAll('.keyInp')[oldKeyInp.length-1];
-
-    newKeyInp.setAttribute('oninput',
-      'addInputBar()');
-
+    newKeyInp.setAttribute('oninput', 'addInputBar()');
   }
 
 </script>
