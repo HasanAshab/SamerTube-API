@@ -13,4 +13,9 @@ class FileController extends Controller
     $path = storage_path("app/public/".$file->path);
     return response()->file($path);
   }
+  
+  public function getStaticImage($filename){
+    $path = storage_path("app/public/images/".$filename);
+    return response()->file($path);
+  }
 }

@@ -35,7 +35,8 @@ class AuthController extends Controller
     ]);
     $channel = Channel::create([
       'name' => $request->name,
-      'country' => 'Bangladesh'//Location::get($request->ip())->countryName);
+      'country' => Location::get($request->ip())->countryName),
+      'logo_url' => route('static.image.serve', ['filename' => 'user.jpg'])
     ]);
     $token = $user->createToken("API TOKEN", ['user'])->plainTextToken;
     

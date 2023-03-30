@@ -98,6 +98,7 @@ Route::group([
 
 //Endpoints for necessary app services
 Route::get('file/{id}', FileController::class)->middleware(['signed', 'throttle:10,1'])->name('file.serve');
+Route::get('file/static/image/{filename}', [FileController::class, 'getStaticImage'])->middleware(['throttle:10,1'])->name('static.image.serve');
 Route::get('app-name', fn() => config('app.name'));
 Route::get('categories', [CategoryController::class, 'index']);
 

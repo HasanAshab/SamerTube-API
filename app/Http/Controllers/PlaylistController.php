@@ -11,20 +11,20 @@ use App\Models\SavedPlaylist;
 
 class PlaylistController extends Controller
 {
-    // Get a users saved, created and liked videos Playlist
+  // Get a users saved, created and liked videos Playlist
   public function index() {
     $saved_playlists_id = SavedPlaylist::where('user_id', auth()->id())->pluck('playlist_id');
     $liked_videos_playlist = [
       'name' => 'Liked videos',
       'total_videos' => Review::where('reviewer_id', auth()->id())->where('review', 1)->count(),
       'link' => route('videos.liked'),
-      'thumbnail_url' => URL::signedRoute('file.serve', ['type' => 'liked-videos'])
+      'thumbnail_url' => route('static.image.serve', ['filename' => 'liked-videos.jpg'])
     ];
     $watch_later = [
       'name' => 'Watch later',
       'total_videos' => WatchLater::where('user_id', auth()->id())->count(),
       'link' => route('videos.watchLater'),
-      'thumbnail_url' => URL::signedRoute('file.serve', ['type' => 'watch-later'])
+      'thumbnail_url' => route('static.image.serve', ['filename' => 'watch-later.jpg'])
     ];
     $playlists = Playlist::where('user_id', auth()->id())->orWhere(function ($query) use ($saved_playlists_id) {
       $query->whereIn('id', $saved_playlists_id);
@@ -38,16 +38,16 @@ class PlaylistController extends Controller
   // Create a playlist
   public function store(Request $request) {
     $request->validate([
-      'name' => 'bail|required|string|between:1,30',
-      'description' => 'bail|string|max:300',
-      'visibility' => 'bail|required|in:public,private',
+      'name' => 'required|string|between:1,30',
+      'description' => 'string|max:300',
+      'visibility' => 'required|in:public,private',
     ]);
-    $playlist = new Playlist;
-    $playlist->name = $request->name;
-    $playlist->description = $request->description;
-    $playlist->visibility = $request->visibility;
-    $playlist->link = URL::signedRoute('playlist.videos', ['id' => $playlist->getNextId()]);
-    if ($playlist->save()) {
+    $playlist = Playlist::create([
+      'name' => $request->name,
+      'description' => $request->description,
+      'visibility' => $request->visibility
+    ]);
+    if ($playlist) {
       return ['success' => true,
         'message' => 'Playlist successfully created!'];
     }
@@ -60,18 +60,16 @@ class PlaylistController extends Controller
   // Update a playlist
   public function update(Request $request, $id) {
     $request->validate([
-      'name' => 'bail|required|string|between:1,30',
-      'description' => 'bail|string|max:300',
-      'visibility' => 'bail|required|in:public,private',
+      'name' => 'required|string|between:1,30',
+      'description' => 'string|max:300',
+      'visibility' => 'required|in:public,private',
     ]);
     $playlist = Playlist::find($id);
     if ($playlist->user_id !== $request->user()->id) {
       abort(405);
     }
-    $playlist->name = $request->name;
-    $playlist->description = $request->description;
-    $playlist->visibility = $request->visibility;
-    if ($playlist->save()) {
+    $result = $playlist->update($request->only(['name', 'description', 'visibility']));
+   if ($result) {
       return ['success' => true,
         'message' => 'Playlist successfully updated!'];
     }
@@ -204,13 +202,13 @@ class PlaylistController extends Controller
       $offset = isset($request->offset)?$request->offset:0;
       $playlist_video_query->offset($offset)->limit($request->limit);
     }
-    $videos = $playlist_video_query->with(['channel' => function ($query){
+    $videos = $playlist_video_query->with(['channel' => function ($query) {
       return $query->select('id', 'name');
     }])->where('visibility', 'public')->get();
     return $videos;
   }
- 
-     // Get watch later videos
+
+  // Get watch later videos
   public function getWatchLaterVideos(Request $request) {
     $watch_later_query = WatchLater::where('user_id', auth()->user()->id);
     if (isset($request->limit)) {
@@ -220,14 +218,14 @@ class PlaylistController extends Controller
       $watch_later_query->offset($offset)->limit($request->limit);
     }
     $watch_later_videos_id = $watch_later_query->pluck('video_id');
-    $videos = Video::with(['channel' => function ($query){
+    $videos = Video::with(['channel' => function ($query) {
       return $query->select('id', 'name');
     }])->whereIn('id', $watch_later_videos_id)->get();
     return $videos;
   }
-  
 
- // Add video to Watch Later
+
+  // Add video to Watch Later
   public function addVideoToWatchLater($video_id) {
     if (!Video::find($video_id)) {
       return response()->json([

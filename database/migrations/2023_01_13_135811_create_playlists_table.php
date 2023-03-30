@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('name', 30);
             $table->string('description', 300)->nullable();
             $table->string('visibility');
-            $table->string('link');
             $table->integer('total_videos')->default(0);
             $table->timestamps();
         });

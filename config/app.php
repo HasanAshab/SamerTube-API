@@ -17,7 +17,7 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
     
-    'logo' => env('APP_LOGO', null),
+    'logo' => env('APP_LOGO', route('static.image.serve', ['filename' => 'app-logo.jpg'])),
 
     /*
     |--------------------------------------------------------------------------
